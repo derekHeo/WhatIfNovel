@@ -1,0 +1,53 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class GptService {
+  static Future<String> generateNovelFromDiary(String diary) async {
+    final apiKey = ''; // 실제 자신의 OpenAI API 키로 교체 (노출 조심!)
+    final url = Uri.parse('https://api.openai.com/v1/chat/completions');
+
+    final prompt = '''
+일지 내용: $diary
+
+혹시 이 일지 내용을 바탕으로 사용자의 나쁜 스마트폰 중독 습관을 고칠 수 있도록 좀 충격을 줄 수 있을 법한 단편 소설을 써줄 수 있어?
+
+주인공은 나였으면 좋겠어
+
+소설은 2편이었으면 해
+
+1편은 충격을 줄만한 부정적인 단편 소설
+
+2편은 만약 내가 핸드폰을 하지 않았더라면 어떻게 됐을까를 나타낸 재밌는 단편 소설
+
+각 편별로 최대 100자까지.
+''';
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $apiKey',
+      },
+      body: jsonEncode({
+        "model": "gpt-4o-mini", //
+        "messages": [
+          {
+            "role": "system",
+            "content":
+                "너는 사용자의 스마트폰 사용 일지를 바탕으로, 두 편의 단편소설을 쓰는 소설가야. 결과는 반드시 2편의 단편소설 형태로 제공해."
+          },
+          {"role": "user", "content": prompt},
+        ],
+        "max_tokens": 300,
+        "temperature": 0.8,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      return decoded['choices'][0]['message']['content'].toString();
+    } else {
+      throw Exception('GPT API 호출 실패: ${response.body}');
+    }
+  }
+}
