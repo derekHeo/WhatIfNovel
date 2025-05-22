@@ -22,7 +22,9 @@ class NovelPage extends StatelessWidget {
             children: [
               const SizedBox(height: 14),
               if (diaryProvider.lastNovel != null) ...[
-                const Text('AI가 변환한 500자 이내의 소설', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                const Text('AI가 변환한 500자 이내의 소설',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
                 const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
@@ -33,19 +35,25 @@ class NovelPage extends StatelessWidget {
                   ),
                   child: Text(
                     diaryProvider.lastNovel?.novel ?? "",
-                    style: const TextStyle(fontSize: 16, color: CupertinoColors.black),
+                    style: const TextStyle(
+                        fontSize: 16, color: CupertinoColors.black),
                   ),
                 ),
                 const SizedBox(height: 18),
               ],
-              const Text('이전 소설 기록', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('이전 소설 기록',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 8),
               Expanded(
                 child: diaryProvider.novelHistory.isEmpty
-                    ? const Center(child: Text('기록이 없습니다.', style: TextStyle(color: CupertinoColors.systemGrey)))
+                    ? const Center(
+                        child: Text('기록이 없습니다.',
+                            style:
+                                TextStyle(color: CupertinoColors.systemGrey)))
                     : ListView.separated(
                         itemCount: diaryProvider.novelHistory.length,
-                        separatorBuilder: (context, idx) => const SizedBox(height: 10),
+                        separatorBuilder: (context, idx) =>
+                            const SizedBox(height: 10),
                         itemBuilder: (context, idx) {
                           final model = diaryProvider.novelHistory[idx];
 
@@ -83,12 +91,21 @@ class NovelPage extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('1편: $title1', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  Text('2편: $title2', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Text('1편: $title1',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold)),
+                                  Text('2편: $title2',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold)),
                                   const SizedBox(height: 4),
                                   Text(
-                                    model.date.toLocal().toString().split(' ')[0],
-                                    style: const TextStyle(fontSize: 12, color: CupertinoColors.systemGrey),
+                                    model.date
+                                        .toLocal()
+                                        .toString()
+                                        .split(' ')[0],
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        color: CupertinoColors.systemGrey),
                                   ),
                                 ],
                               ),
@@ -101,7 +118,8 @@ class NovelPage extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: CupertinoButton(
-                  child: const Text('새로운 일지 작성', style: TextStyle(fontSize: 15)),
+                  child:
+                      const Text('새로운 일지 작성', style: TextStyle(fontSize: 15)),
                   onPressed: () => Navigator.pop(context),
                   color: CupertinoColors.systemGrey5,
                 ),
