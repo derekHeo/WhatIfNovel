@@ -6,7 +6,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'pages/start_screen.dart';
 import 'providers/diary_provider.dart';
 import 'providers/user_profile_provider.dart';
-import 'providers/screen_time_provider.dart'; // ScreenTimeProvider import 추가
+import 'providers/screen_time_provider.dart';
+import 'providers/comment_provider.dart';
+import 'providers/tts_provider.dart'; // TtsProvider import 추가
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,8 +28,11 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (context) => DiaryProvider()),
         ChangeNotifierProvider(create: (context) => UserProfileProvider()),
+        ChangeNotifierProvider(create: (context) => ScreenTimeProvider()),
         ChangeNotifierProvider(
-            create: (context) => ScreenTimeProvider()), // ScreenTimeProvider 추가
+            create: (context) => CommentProvider()..initializeBox()),
+        ChangeNotifierProvider(
+            create: (context) => TtsProvider()), // TtsProvider 추가
       ],
       child: MaterialApp(
         title: 'What If Novel Diary',
