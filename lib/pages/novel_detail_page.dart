@@ -156,7 +156,7 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                            color: Color(0xFFF5E6A3),
                           ),
                         ),
 
@@ -181,7 +181,7 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black,
+                              color: Color(0xFF007AFF),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -825,56 +825,40 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
   String _extractFirstNovelTitle(String novel) {
     final lines = novel.split('\n');
     for (final line in lines) {
-      if (line.contains('1편') || line.toLowerCase().contains('first')) {
-        // ** 제거하고 <> 괄호로 변경
-        String cleanTitle = line
-            .trim()
-            .replaceAll('**', '')
-            .replaceAll('「', '<')
-            .replaceAll('」', '>');
-        return cleanTitle;
+      if (line.trim().startsWith('### What you did')) {
+        return '<${line.trim().substring(4)}>'; // ### 제거하고 <> 감싸기
       }
     }
-    return '<1편: 길 잃은 시간>'; // 기본값
+    return '<What you did>'; // 기본값
   }
 
-  // 첫 번째 소설의 내용 추출
+// 첫 번째 소설의 내용 추출
   String _extractFirstNovelContent(String novel) {
     final lines = novel.split('\n');
     bool foundFirst = false;
     bool foundContent = false;
     final List<String> content = [];
 
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i];
-
-      // 1편 시작 지점 찾기
-      if (line.contains('1편') || line.toLowerCase().contains('first')) {
+    for (final line in lines) {
+      if (line.trim().startsWith('### What you did')) {
         foundFirst = true;
         continue;
       }
 
-      // 2편 시작되면 1편 내용 수집 종료
-      if (foundFirst &&
-          (line.contains('2편') || line.toLowerCase().contains('second'))) {
-        break;
+      if (line.trim().startsWith('### What If')) {
+        break; // 2편 시작되면 종료
       }
 
-      // 1편 내용 수집 (** 제거)
       if (foundFirst && line.trim().isNotEmpty) {
         String cleanLine = line.trim().replaceAll('**', '');
-        if (cleanLine.isNotEmpty) {
-          content.add(cleanLine);
-          foundContent = true;
-        }
+        content.add(cleanLine);
+        foundContent = true;
       }
     }
 
-    // 실제 데이터가 있으면 반환, 없으면 전체 텍스트의 앞부분 반환
     if (foundContent && content.isNotEmpty) {
       return content.join('\n');
     } else {
-      // 구조화된 데이터가 없으면 전체 텍스트를 반으로 나누어 첫 번째 부분 반환
       final allLines = novel
           .split('\n')
           .where((line) => line.trim().isNotEmpty)
@@ -885,31 +869,23 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     }
   }
 
-  // 두 번째 소설이 있는지 확인
+// 두 번째 소설이 있는지 확인
   bool _hasSecondNovel(String novel) {
-    return novel.contains('2편') ||
-        novel.toLowerCase().contains('second') ||
-        novel.split('\n').length > 10;
+    return novel.contains('### What If');
   }
 
-  // 두 번째 소설의 제목 추출
+// 두 번째 소설의 제목 추출
   String _extractSecondNovelTitle(String novel) {
     final lines = novel.split('\n');
     for (final line in lines) {
-      if (line.contains('2편') || line.toLowerCase().contains('second')) {
-        // ** 제거하고 <> 괄호로 변경
-        String cleanTitle = line
-            .trim()
-            .replaceAll('**', '')
-            .replaceAll('「', '<')
-            .replaceAll('」', '>');
-        return cleanTitle;
+      if (line.trim().startsWith('### What If')) {
+        return '<${line.trim().substring(4)}>'; // ### 제거하고 <> 감싸기
       }
     }
-    return '<2편: 다른 길>'; // 기본값
+    return '<What If you didn\'t>'; // 기본값
   }
 
-  // 두 번째 소설의 내용 추출
+// 두 번째 소설의 내용 추출
   String _extractSecondNovelContent(String novel) {
     final lines = novel.split('\n');
     bool foundSecond = false;
@@ -917,27 +893,21 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     final List<String> content = [];
 
     for (final line in lines) {
-      // 2편 시작 지점 찾기
-      if (line.contains('2편') || line.toLowerCase().contains('second')) {
+      if (line.trim().startsWith('### What If')) {
         foundSecond = true;
         continue;
       }
 
-      // 2편 내용 수집 (** 제거)
       if (foundSecond && line.trim().isNotEmpty) {
         String cleanLine = line.trim().replaceAll('**', '');
-        if (cleanLine.isNotEmpty) {
-          content.add(cleanLine);
-          foundContent = true;
-        }
+        content.add(cleanLine);
+        foundContent = true;
       }
     }
 
-    // 실제 데이터가 있으면 반환, 없으면 전체 텍스트의 뒷부분 반환
     if (foundContent && content.isNotEmpty) {
       return content.join('\n');
     } else {
-      // 구조화된 데이터가 없으면 전체 텍스트를 반으로 나누어 두 번째 부분 반환
       final allLines = novel
           .split('\n')
           .where((line) => line.trim().isNotEmpty)

@@ -21,11 +21,12 @@ $profileContext
 
 소설은 2편이었으면 해
 
-1편은 충격을 줄만한 부정적인 단편 소설
+1편은 충격을 줄만한 부정적인 단편 소설.
+2편은 만약 내가 핸드폰을 하지 않았더라면 어떻게 됐을까를 나타낸 재밌는 단편 소설.
 
-2편은 만약 내가 핸드폰을 하지 않았더라면 어떻게 됐을까를 나타낸 재밌는 단편 소설
-
-각 편별로 최대 100자까지.
+모든 생성된 소설의 1편의 제목은 What you did로 할것.(대소문자 절대적으로 지킬 것)
+모든 생성된 소설의 2편의 제목은 What If you didn't로 할것.(대소문자 절대적으로 지킬 것)
+각 편별로 최대 300자까지.
 ''';
 
     final systemMessage = userProfileInfo != null
@@ -44,7 +45,7 @@ $profileContext
           {"role": "system", "content": systemMessage},
           {"role": "user", "content": prompt},
         ],
-        "max_tokens": 300,
+        "max_tokens": 1000,
         "temperature": 0.6,
       }),
     );
