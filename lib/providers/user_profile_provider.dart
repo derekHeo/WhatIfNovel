@@ -3,6 +3,8 @@ import 'package:hive/hive.dart';
 import '../models/user_profile.dart';
 
 class UserProfileProvider with ChangeNotifier {
+  // ⚠️ 중요: UserProfile 모델의 생성자 기본값이 바뀌었으므로,
+  // 초기화 시 빈 UserProfile 객체를 올바르게 생성하도록 수정합니다.
   UserProfile _userProfile = UserProfile(name: '');
 
   UserProfile get userProfile => _userProfile;
@@ -16,6 +18,7 @@ class UserProfileProvider with ChangeNotifier {
       var box = await Hive.openBox('user_profile');
       final profileData = box.get('profile');
       if (profileData != null) {
+        // fromMap은 UserProfile 모델에서 이미 수정했으므로 이 코드는 그대로 작동합니다.
         _userProfile =
             UserProfile.fromMap(Map<String, dynamic>.from(profileData));
         notifyListeners();
@@ -28,6 +31,7 @@ class UserProfileProvider with ChangeNotifier {
   Future<void> saveProfile(UserProfile profile) async {
     try {
       var box = await Hive.openBox('user_profile');
+      // toMap은 UserProfile 모델에서 이미 수정했으므로 이 코드는 그대로 작동합니다.
       await box.put('profile', profile.toMap());
       _userProfile = profile;
       notifyListeners();
@@ -37,6 +41,7 @@ class UserProfileProvider with ChangeNotifier {
     }
   }
 
+  // 변경: updateProfile 메서드의 파라미터를 새 모델에 맞게 수정
   Future<void> updateProfile({
     String? name,
     int? birthYear,
@@ -44,11 +49,14 @@ class UserProfileProvider with ChangeNotifier {
     int? birthDay,
     String? gender,
     String? job,
-    String? currentActivities,
+    String? longTermGoal, // currentActivities -> longTermGoal
+    String? shortTermGoal, // shortTermGoal 추가
     String? additionalInfo,
     List<String>? keywords,
+    Map<String, List<String>>? styleAnswers, // styleAnswers 추가
     bool? agreeToDataUsage,
   }) async {
+    // copyWith 호출을 새 모델에 맞게 수정
     final updatedProfile = _userProfile.copyWith(
       name: name,
       birthYear: birthYear,
@@ -56,9 +64,11 @@ class UserProfileProvider with ChangeNotifier {
       birthDay: birthDay,
       gender: gender,
       job: job,
-      currentActivities: currentActivities,
+      longTermGoal: longTermGoal,
+      shortTermGoal: shortTermGoal,
       additionalInfo: additionalInfo,
       keywords: keywords,
+      styleAnswers: styleAnswers,
       agreeToDataUsage: agreeToDataUsage,
     );
 
@@ -69,6 +79,7 @@ class UserProfileProvider with ChangeNotifier {
     try {
       var box = await Hive.openBox('user_profile');
       await box.delete('profile');
+      // UserProfile 모델의 생성자 기본값이 바뀌었으므로, 초기화 코드를 수정합니다.
       _userProfile = UserProfile(name: '');
       notifyListeners();
     } catch (e) {
@@ -76,28 +87,48 @@ class UserProfileProvider with ChangeNotifier {
     }
   }
 
-  // 프로필 완성도 체크
+  // 변경: 프로필 완성도 체크 로직을 새 모델 필드에 맞게 수정
   double get profileCompleteness {
-    int totalFields = 7; // 이름, 생년월일, 성별, 직업, 현재활동, 추가정보, 키워드
+    // 장기/단기 목표가 추가되었으므로 총 필드 수를 8개로 변경
+    int totalFields = 8;
     int completedFields = 0;
 
     if (_userProfile.name.isNotEmpty) completedFields++;
     if (_userProfile.birthYear != null) completedFields++;
-    if (_userProfile.gender != null && _userProfile.gender!.isNotEmpty)
+    if (_userProfile.gender != null && _userProfile.gender!.isNotEmpty) {
       completedFields++;
-    if (_userProfile.job != null && _userProfile.job!.isNotEmpty)
+    }
+    if (_userProfile.job != null && _userProfile.job!.isNotEmpty) {
       completedFields++;
-    if (_userProfile.currentActivities != null &&
-        _userProfile.currentActivities!.isNotEmpty) completedFields++;
+    }
+    // currentActivities 대신 longTermGoal, shortTermGoal을 각각 체크
+    if (_userProfile.longTermGoal != null &&
+        _userProfile.longTermGoal!.isNotEmpty) {
+      completedFields++;
+    }
+    if (_userProfile.shortTermGoal != null &&
+        _userProfile.shortTermGoal!.isNotEmpty) {
+      completedFields++;
+    }
     if (_userProfile.additionalInfo != null &&
-        _userProfile.additionalInfo!.isNotEmpty) completedFields++;
-    if (_userProfile.keywords.isNotEmpty) completedFields++;
+        _userProfile.additionalInfo!.isNotEmpty) {
+      completedFields++;
+    }
+    // styleAnswers가 비어있지 않다면 필드를 채운 것으로 간주 (기존 keywords도 호환)
+    if ((_userProfile.styleAnswers != null &&
+            _userProfile.styleAnswers!.values.any((list) => list.isNotEmpty)) ||
+        _userProfile.keywords.isNotEmpty) {
+      completedFields++;
+    }
 
+    if (totalFields == 0) return 0.0;
     return completedFields / totalFields;
   }
 
   // GPT용 프로필 텍스트 가져오기
   String getProfileForPrompt() {
+    // UserProfile 모델의 isEmpty와 toPromptText는 이미 수정되었으므로
+    // 이 코드는 그대로 작동합니다.
     if (_userProfile.isEmpty) {
       return '사용자 프로필: 정보 없음';
     }

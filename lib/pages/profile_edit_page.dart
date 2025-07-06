@@ -16,7 +16,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   late TextEditingController _yearController;
   late TextEditingController _dayController;
   late TextEditingController _jobController;
-  late TextEditingController _activitiesController;
+  // 변경: 'activitiesController'를 'longTermGoalController'와 'shortTermGoalController'로 분리
+  late TextEditingController _longTermGoalController;
+  late TextEditingController _shortTermGoalController;
   late TextEditingController _additionalInfoController;
 
   int? _selectedMonth;
@@ -83,7 +85,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     _yearController = TextEditingController();
     _dayController = TextEditingController();
     _jobController = TextEditingController();
-    _activitiesController = TextEditingController();
+    // 변경: 컨트롤러 초기화
+    _longTermGoalController = TextEditingController();
+    _shortTermGoalController = TextEditingController();
     _additionalInfoController = TextEditingController();
   }
 
@@ -99,19 +103,31 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         Provider.of<UserProfileProvider>(context, listen: false);
     final profile = profileProvider.userProfile;
 
+    // 이름, 생년월일 등 다른 필드 로딩 (이 부분은 기존과 동일)
     _nameController.text = profile.name;
     _yearController.text = profile.birthYear?.toString() ?? '';
     _dayController.text = profile.birthDay?.toString() ?? '';
     _selectedMonth = profile.birthMonth;
     _selectedGender = profile.gender;
     _jobController.text = profile.job ?? '';
-    _activitiesController.text = profile.currentActivities ?? '';
+    _longTermGoalController.text = profile.longTermGoal ?? '';
+    _shortTermGoalController.text = profile.shortTermGoal ?? '';
     _additionalInfoController.text = profile.additionalInfo ?? '';
 
-    // 기존 keywords를 스타일 답변으로 변환 (기존 데이터 호환성)
-    if (profile.keywords.isNotEmpty) {
-      // 첫 번째 카테고리에 기존 키워드들을 넣어두기
+    // --- 💡 여기가 수정된 핵심 로직입니다 ---
+
+    // 1. 새로운 styleAnswers 데이터가 있으면 우선적으로 로드합니다.
+    if (profile.styleAnswers != null && profile.styleAnswers!.isNotEmpty) {
+      // Provider에서 불러온 맵으로 현재 페이지의 선택 상태(_selectedStyleAnswers)를 교체합니다.
+      // Map.from과 List.from으로 깊은 복사를 해주는 것이 안전합니다.
+      _selectedStyleAnswers = Map.from(profile.styleAnswers!.map(
+        (key, value) => MapEntry(key, List<String>.from(value)),
+      ));
+    }
+    // 2. styleAnswers 데이터가 없을 경우에만, 기존 keywords 데이터로 하위 호환성을 유지합니다.
+    else if (profile.keywords.isNotEmpty) {
       final firstCategory = _styleQuestions.keys.first;
+      // 이전과 같이 첫 번째 카테고리에 모든 키워드를 할당합니다.
       _selectedStyleAnswers[firstCategory] = List.from(profile.keywords);
     }
   }
@@ -122,7 +138,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     _yearController.dispose();
     _dayController.dispose();
     _jobController.dispose();
-    _activitiesController.dispose();
+    // 변경: 컨트롤러 dispose
+    _longTermGoalController.dispose();
+    _shortTermGoalController.dispose();
     _additionalInfoController.dispose();
     super.dispose();
   }
@@ -166,7 +184,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 안내 텍스트
+            // ... (상단 UI 코드는 변경 없음)
             const Center(
               child: Column(
                 children: [
@@ -288,17 +306,28 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             // 직업 입력
             _buildTextField(
               controller: _jobController,
-              placeholder: '직업 - 직장인/ 주부 가사와 작성할 수 있어',
+              placeholder: '직업 - ex) 직장인, 대학생',
             ),
 
             const SizedBox(height: 20),
 
-            // 현재 활동
+            // --- 변경된 부분 시작 ---
+            // 장기적인 목표
             _buildTextArea(
-              controller: _activitiesController,
-              placeholder: '요즘 주로 어떤 일들을 하고 있나시나요?',
+              controller: _longTermGoalController,
+              placeholder: '현재 가지고 계신 장기적인 목표가 있나요?',
               maxLines: 4,
             ),
+
+            const SizedBox(height: 20),
+
+            // 단기적인 목표
+            _buildTextArea(
+              controller: _shortTermGoalController,
+              placeholder: '현재 가지고 계신 단기적인 목표가 있나요?',
+              maxLines: 4,
+            ),
+            // --- 변경된 부분 끝 ---
 
             const SizedBox(height: 20),
 
@@ -311,7 +340,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
             const SizedBox(height: 30),
 
-            // 스타일 문항들
+            // ... (스타일 문항 UI 코드는 변경 없음)
             const Text(
               '당신을 가장 잘 표현하는 스타일을 골라주세요!',
               style: TextStyle(
@@ -447,6 +476,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
   }
 
+  // ... (_getCategoryDescription, _getAllSelectedAnswers, _build... 메서드는 변경 없음)
   String _getCategoryDescription(String category) {
     switch (category) {
       case '상황 대처 스타일':
@@ -590,6 +620,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       // 모든 선택된 답변들을 keywords로 변환 (기존 호환성)
       final allSelectedAnswers = _getAllSelectedAnswers();
 
+      // UserProfile 모델을 생성할 때, 변경된 컨트롤러의 값을 사용합니다.
+      // ⚠️ 중요: UserProfile 클래스에 longTermGoal, shortTermGoal 필드가 추가되어야 합니다.
       final profile = UserProfile(
         name: _nameController.text.trim(),
         birthYear: _yearController.text.trim().isNotEmpty
@@ -603,8 +635,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         job: _jobController.text.trim().isNotEmpty
             ? _jobController.text.trim()
             : null,
-        currentActivities: _activitiesController.text.trim().isNotEmpty
-            ? _activitiesController.text.trim()
+        // 변경: 새로운 목표 필드 저장
+        longTermGoal: _longTermGoalController.text.trim().isNotEmpty
+            ? _longTermGoalController.text.trim()
+            : null,
+        shortTermGoal: _shortTermGoalController.text.trim().isNotEmpty
+            ? _shortTermGoalController.text.trim()
             : null,
         additionalInfo: _additionalInfoController.text.trim().isNotEmpty
             ? _additionalInfoController.text.trim()

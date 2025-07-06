@@ -33,7 +33,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
   void initState() {
     super.initState();
     _loadCurrentWeekNovels();
-    // _loadComments()는 Consumer에서 실시간으로 가져오므로 제거
+    // 소설 생성 결과 로그 출력
+    print(widget.diary.novel);
   }
 
   @override
@@ -237,16 +238,6 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                                       ? const Color(0xFF007AFF)
                                       : Colors.black54,
                                   size: 24,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${diaryProvider.bookmarkedNovels.length}',
-                                  style: TextStyle(
-                                    color: isBookmarked
-                                        ? const Color(0xFF007AFF)
-                                        : Colors.black54,
-                                    fontSize: 14,
-                                  ),
                                 ),
                               ],
                             ),
@@ -821,12 +812,19 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     return diary;
   }
 
-  // 첫 번째 소설의 제목 추출
+// 첫 번째 소설의 제목 추출
   String _extractFirstNovelTitle(String novel) {
     final lines = novel.split('\n');
     for (final line in lines) {
-      if (line.trim().startsWith('### What you did')) {
-        return '<${line.trim().substring(4)}>'; // ### 제거하고 <> 감싸기
+      final trimmedLine = line.trim();
+      if (trimmedLine.startsWith('**What you did**')) {
+        // **What you did** -> <What you did>
+        String title = trimmedLine.replaceAll('**', ''); // ** 제거
+        return '<$title>';
+      } else if (trimmedLine.startsWith('### What you did')) {
+        // ### What you did -> <What you did>
+        String title = trimmedLine.substring(4); // ### 제거
+        return '<$title>';
       }
     }
     return '<What you did>'; // 기본값
@@ -836,50 +834,62 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
   String _extractFirstNovelContent(String novel) {
     final lines = novel.split('\n');
     bool foundFirst = false;
-    bool foundContent = false;
     final List<String> content = [];
 
     for (final line in lines) {
-      if (line.trim().startsWith('### What you did')) {
+      final trimmedLine = line.trim();
+      if (trimmedLine.startsWith('**What you did**') ||
+          trimmedLine.startsWith('### What you did')) {
         foundFirst = true;
-        continue;
+        continue; // 제목 라인은 건너뛰기
       }
 
-      if (line.trim().startsWith('### What If')) {
+      if (trimmedLine.startsWith('**What If') ||
+          trimmedLine.startsWith('### What If')) {
         break; // 2편 시작되면 종료
       }
 
-      if (foundFirst && line.trim().isNotEmpty) {
-        String cleanLine = line.trim().replaceAll('**', '');
-        content.add(cleanLine);
-        foundContent = true;
+      if (foundFirst) {
+        // 빈 줄도 포함하여 원본 형태 유지
+        content.add(line);
       }
     }
 
-    if (foundContent && content.isNotEmpty) {
+    if (content.isNotEmpty) {
+      // 앞뒤 빈 줄 제거
+      while (content.isNotEmpty && content.first.trim().isEmpty) {
+        content.removeAt(0);
+      }
+      while (content.isNotEmpty && content.last.trim().isEmpty) {
+        content.removeLast();
+      }
       return content.join('\n');
     } else {
-      final allLines = novel
-          .split('\n')
-          .where((line) => line.trim().isNotEmpty)
-          .map((line) => line.replaceAll('**', ''))
-          .toList();
-      final halfPoint = allLines.length ~/ 2;
-      return allLines.take(halfPoint).join('\n');
+      // 대체 로직: 전체 텍스트의 앞쪽 절반
+      final allText = novel.replaceAll('**', '').replaceAll('###', '');
+      final halfPoint = allText.length ~/ 2;
+      return allText.substring(0, halfPoint).trim();
     }
   }
 
 // 두 번째 소설이 있는지 확인
   bool _hasSecondNovel(String novel) {
-    return novel.contains('### What If');
+    return novel.contains('**What If') || novel.contains('### What If');
   }
 
 // 두 번째 소설의 제목 추출
   String _extractSecondNovelTitle(String novel) {
     final lines = novel.split('\n');
     for (final line in lines) {
-      if (line.trim().startsWith('### What If')) {
-        return '<${line.trim().substring(4)}>'; // ### 제거하고 <> 감싸기
+      final trimmedLine = line.trim();
+      if (trimmedLine.startsWith('**What If')) {
+        // **What If you didn't** -> <What If you didn't>
+        String title = trimmedLine.replaceAll('**', ''); // ** 제거
+        return '<$title>';
+      } else if (trimmedLine.startsWith('### What If')) {
+        // ### What If you didn't -> <What If you didn't>
+        String title = trimmedLine.substring(4); // ### 제거
+        return '<$title>';
       }
     }
     return '<What If you didn\'t>'; // 기본값
@@ -889,32 +899,36 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
   String _extractSecondNovelContent(String novel) {
     final lines = novel.split('\n');
     bool foundSecond = false;
-    bool foundContent = false;
     final List<String> content = [];
 
     for (final line in lines) {
-      if (line.trim().startsWith('### What If')) {
+      final trimmedLine = line.trim();
+      if (trimmedLine.startsWith('**What If') ||
+          trimmedLine.startsWith('### What If')) {
         foundSecond = true;
-        continue;
+        continue; // 제목 라인은 건너뛰기
       }
 
-      if (foundSecond && line.trim().isNotEmpty) {
-        String cleanLine = line.trim().replaceAll('**', '');
-        content.add(cleanLine);
-        foundContent = true;
+      if (foundSecond) {
+        // 빈 줄도 포함하여 원본 형태 유지
+        content.add(line);
       }
     }
 
-    if (foundContent && content.isNotEmpty) {
+    if (content.isNotEmpty) {
+      // 앞뒤 빈 줄 제거
+      while (content.isNotEmpty && content.first.trim().isEmpty) {
+        content.removeAt(0);
+      }
+      while (content.isNotEmpty && content.last.trim().isEmpty) {
+        content.removeLast();
+      }
       return content.join('\n');
     } else {
-      final allLines = novel
-          .split('\n')
-          .where((line) => line.trim().isNotEmpty)
-          .map((line) => line.replaceAll('**', ''))
-          .toList();
-      final halfPoint = allLines.length ~/ 2;
-      return allLines.skip(halfPoint).join('\n');
+      // 대체 로직: 전체 텍스트의 뒤쪽 절반
+      final allText = novel.replaceAll('**', '').replaceAll('###', '');
+      final halfPoint = allText.length ~/ 2;
+      return allText.substring(halfPoint).trim();
     }
   }
 }

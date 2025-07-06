@@ -8,12 +8,14 @@ import 'providers/diary_provider.dart';
 import 'providers/user_profile_provider.dart';
 import 'providers/screen_time_provider.dart';
 import 'providers/comment_provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Hive 초기화
   await Hive.initFlutter();
+  await dotenv.load(fileName: ".env");
 
   runApp(const MyApp());
 }

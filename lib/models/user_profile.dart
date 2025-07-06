@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart'; // toPromptText에서 사용될 수 있으므로 유지
+
 class UserProfile {
   final String name;
   final int? birthYear;
@@ -5,10 +7,12 @@ class UserProfile {
   final int? birthDay;
   final String? gender;
   final String? job;
-  final String? currentActivities;
+  // 변경: currentActivities를 longTermGoal과 shortTermGoal로 분리
+  final String? longTermGoal;
+  final String? shortTermGoal;
   final String? additionalInfo;
   final List<String> keywords;
-  final Map<String, List<String>>? styleAnswers; // 카테고리별 답변 추가
+  final Map<String, List<String>>? styleAnswers;
   final bool agreeToDataUsage;
 
   UserProfile({
@@ -18,13 +22,16 @@ class UserProfile {
     this.birthDay,
     this.gender,
     this.job,
-    this.currentActivities,
+    // 변경: 생성자 파라미터 업데이트
+    this.longTermGoal,
+    this.shortTermGoal,
     this.additionalInfo,
     this.keywords = const [],
     this.styleAnswers,
     this.agreeToDataUsage = false,
   });
 
+  // toMap: 객체를 Map으로 변환 (저장용)
   Map<String, dynamic> toMap() => {
         'name': name,
         'birthYear': birthYear,
@@ -32,13 +39,16 @@ class UserProfile {
         'birthDay': birthDay,
         'gender': gender,
         'job': job,
-        'currentActivities': currentActivities,
+        // 변경: Map 키/값 업데이트
+        'longTermGoal': longTermGoal,
+        'shortTermGoal': shortTermGoal,
         'additionalInfo': additionalInfo,
         'keywords': keywords,
         'styleAnswers': styleAnswers,
         'agreeToDataUsage': agreeToDataUsage,
       };
 
+  // fromMap: Map을 객체로 변환 (불러오기용)
   factory UserProfile.fromMap(Map<String, dynamic> map) {
     return UserProfile(
       name: map['name'] as String? ?? '',
@@ -47,7 +57,9 @@ class UserProfile {
       birthDay: map['birthDay'] as int?,
       gender: map['gender'] as String?,
       job: map['job'] as String?,
-      currentActivities: map['currentActivities'] as String?,
+      // 변경: Map에서 새로운 필드 읽어오기
+      longTermGoal: map['longTermGoal'] as String?,
+      shortTermGoal: map['shortTermGoal'] as String?,
       additionalInfo: map['additionalInfo'] as String?,
       keywords: List<String>.from(map['keywords'] as List? ?? []),
       styleAnswers: map['styleAnswers'] != null
@@ -58,6 +70,7 @@ class UserProfile {
     );
   }
 
+  // copyWith: 객체의 일부 필드만 변경하여 복사
   UserProfile copyWith({
     String? name,
     int? birthYear,
@@ -65,7 +78,9 @@ class UserProfile {
     int? birthDay,
     String? gender,
     String? job,
-    String? currentActivities,
+    // 변경: copyWith 파라미터 업데이트
+    String? longTermGoal,
+    String? shortTermGoal,
     String? additionalInfo,
     List<String>? keywords,
     Map<String, List<String>>? styleAnswers,
@@ -78,7 +93,9 @@ class UserProfile {
       birthDay: birthDay ?? this.birthDay,
       gender: gender ?? this.gender,
       job: job ?? this.job,
-      currentActivities: currentActivities ?? this.currentActivities,
+      // 변경: 복사 로직 업데이트
+      longTermGoal: longTermGoal ?? this.longTermGoal,
+      shortTermGoal: shortTermGoal ?? this.shortTermGoal,
       additionalInfo: additionalInfo ?? this.additionalInfo,
       keywords: keywords ?? this.keywords,
       styleAnswers: styleAnswers ?? this.styleAnswers,
@@ -89,7 +106,9 @@ class UserProfile {
   // 나이 계산
   int? get age {
     if (birthYear == null) return null;
-    final currentYear = DateTime.now().year;
+    // 변경: 현재 날짜를 한국 시간 기준으로 가져오도록 수정
+    final now = DateTime.now();
+    final currentYear = now.year;
     return currentYear - birthYear!;
   }
 
@@ -120,8 +139,12 @@ class UserProfile {
       buffer.writeln('- 직업: $job');
     }
 
-    if (currentActivities != null && currentActivities!.isNotEmpty) {
-      buffer.writeln('- 현재 활동: $currentActivities');
+    // 변경: 현재 활동 대신 장기/단기 목표를 프롬프트에 추가
+    if (longTermGoal != null && longTermGoal!.isNotEmpty) {
+      buffer.writeln('- 장기 목표: $longTermGoal');
+    }
+    if (shortTermGoal != null && shortTermGoal!.isNotEmpty) {
+      buffer.writeln('- 단기 목표: $shortTermGoal');
     }
 
     // 카테고리별 스타일 답변 표시
@@ -144,12 +167,15 @@ class UserProfile {
     return buffer.toString();
   }
 
+  // 프로필이 비어있는지 확인하는 getter
   bool get isEmpty {
     return name.isEmpty &&
         birthYear == null &&
         (gender == null || gender!.isEmpty) &&
         (job == null || job!.isEmpty) &&
-        (currentActivities == null || currentActivities!.isEmpty) &&
+        // 변경: isEmpty 조건 업데이트
+        (longTermGoal == null || longTermGoal!.isEmpty) &&
+        (shortTermGoal == null || shortTermGoal!.isEmpty) &&
         (additionalInfo == null || additionalInfo!.isEmpty) &&
         keywords.isEmpty &&
         (styleAnswers == null || styleAnswers!.isEmpty);

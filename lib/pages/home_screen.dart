@@ -240,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 textAlignVertical: TextAlignVertical.top,
                 style: const TextStyle(
                   fontSize: 14,
-                  color: Colors.grey,
+                  color: Colors.black,
                 ),
                 decoration: const InputDecoration(
                   hintText:
@@ -293,12 +293,14 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 12),
 
             // 하단 버튼들
+            // 하단 버튼들
             Row(
               children: [
                 Expanded(
                   child: SizedBox(
                     height: 40,
-                    child: OutlinedButton(
+                    // OutlinedButton -> ElevatedButton으로 변경
+                    child: ElevatedButton(
                       onPressed: () {
                         Navigator.of(context).push(
                           CupertinoPageRoute(
@@ -306,12 +308,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         );
                       },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.black,
-                        side: BorderSide(color: Colors.black),
+                      // 버튼 스타일 수정
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white, // 배경색: 흰색
+                        foregroundColor: Colors.black, // 글자 및 아이콘 색상: 검은색
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
+                        // 테두리가 필요하다면 이 코드를 추가하세요.
+                        side: const BorderSide(color: Colors.black, width: 1),
+                        // 그림자 효과 제거
+                        elevation: 0,
                       ),
                       child: const Text(
                         '이전 기록 보기',
@@ -323,9 +330,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-                SizedBox(width: 10), // const 제거됨
+                const SizedBox(width: 10),
                 Expanded(
-                  child: OutlinedButton(
+                  // OutlinedButton -> ElevatedButton으로 변경
+                  child: ElevatedButton(
                     onPressed: () {
                       Navigator.of(context).push(
                         CupertinoPageRoute(
@@ -333,12 +341,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       );
                     },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.black,
-                      side: BorderSide(color: Colors.black),
+                    // 버튼 스타일 수정
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white, // 배경색: 흰색
+                      foregroundColor: Colors.black, // 글자 및 아이콘 색상: 검은색
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
+                      // 테두리가 필요하다면 이 코드를 추가하세요.
+                      side: const BorderSide(color: Colors.black, width: 1),
+                      // 그림자 효과 제거
+                      elevation: 0,
                     ),
                     child: const Text(
                       '북마크',
