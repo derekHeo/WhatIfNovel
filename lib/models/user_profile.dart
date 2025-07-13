@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart'; // toPromptText에서 사용될 수 있으므로 유지
+import 'package:flutter/material.dart';
 
 class UserProfile {
   final String name;
@@ -7,10 +7,10 @@ class UserProfile {
   final int? birthDay;
   final String? gender;
   final String? job;
-  // 변경: currentActivities를 longTermGoal과 shortTermGoal로 분리
   final String? longTermGoal;
   final String? shortTermGoal;
-  final String? additionalInfo;
+  final String? additionalInfo; // "요즘 주로 하는 일"
+  final String? extraInfo; // 💡 "추가적인 설명"을 위한 새 필드
   final List<String> keywords;
   final Map<String, List<String>>? styleAnswers;
   final bool agreeToDataUsage;
@@ -22,10 +22,10 @@ class UserProfile {
     this.birthDay,
     this.gender,
     this.job,
-    // 변경: 생성자 파라미터 업데이트
     this.longTermGoal,
     this.shortTermGoal,
     this.additionalInfo,
+    this.extraInfo, // 💡 생성자에 추가
     this.keywords = const [],
     this.styleAnswers,
     this.agreeToDataUsage = false,
@@ -39,10 +39,10 @@ class UserProfile {
         'birthDay': birthDay,
         'gender': gender,
         'job': job,
-        // 변경: Map 키/값 업데이트
         'longTermGoal': longTermGoal,
         'shortTermGoal': shortTermGoal,
         'additionalInfo': additionalInfo,
+        'extraInfo': extraInfo, // 💡 Map에 추가
         'keywords': keywords,
         'styleAnswers': styleAnswers,
         'agreeToDataUsage': agreeToDataUsage,
@@ -57,10 +57,10 @@ class UserProfile {
       birthDay: map['birthDay'] as int?,
       gender: map['gender'] as String?,
       job: map['job'] as String?,
-      // 변경: Map에서 새로운 필드 읽어오기
       longTermGoal: map['longTermGoal'] as String?,
       shortTermGoal: map['shortTermGoal'] as String?,
       additionalInfo: map['additionalInfo'] as String?,
+      extraInfo: map['extraInfo'] as String?, // 💡 Map에서 읽어오기
       keywords: List<String>.from(map['keywords'] as List? ?? []),
       styleAnswers: map['styleAnswers'] != null
           ? Map<String, List<String>>.from(Map.from(map['styleAnswers'])
@@ -78,10 +78,10 @@ class UserProfile {
     int? birthDay,
     String? gender,
     String? job,
-    // 변경: copyWith 파라미터 업데이트
     String? longTermGoal,
     String? shortTermGoal,
     String? additionalInfo,
+    String? extraInfo, // 💡 copyWith에 추가
     List<String>? keywords,
     Map<String, List<String>>? styleAnswers,
     bool? agreeToDataUsage,
@@ -93,10 +93,10 @@ class UserProfile {
       birthDay: birthDay ?? this.birthDay,
       gender: gender ?? this.gender,
       job: job ?? this.job,
-      // 변경: 복사 로직 업데이트
       longTermGoal: longTermGoal ?? this.longTermGoal,
       shortTermGoal: shortTermGoal ?? this.shortTermGoal,
       additionalInfo: additionalInfo ?? this.additionalInfo,
+      extraInfo: extraInfo ?? this.extraInfo, // 💡 복사 로직에 추가
       keywords: keywords ?? this.keywords,
       styleAnswers: styleAnswers ?? this.styleAnswers,
       agreeToDataUsage: agreeToDataUsage ?? this.agreeToDataUsage,
@@ -106,7 +106,6 @@ class UserProfile {
   // 나이 계산
   int? get age {
     if (birthYear == null) return null;
-    // 변경: 현재 날짜를 한국 시간 기준으로 가져오도록 수정
     final now = DateTime.now();
     final currentYear = now.year;
     return currentYear - birthYear!;
@@ -139,12 +138,19 @@ class UserProfile {
       buffer.writeln('- 직업: $job');
     }
 
-    // 변경: 현재 활동 대신 장기/단기 목표를 프롬프트에 추가
+    // longTermGoal, shortTermGoal은 toPromptText 메서드에 이미 반영되어 있었음
     if (longTermGoal != null && longTermGoal!.isNotEmpty) {
       buffer.writeln('- 장기 목표: $longTermGoal');
     }
     if (shortTermGoal != null && shortTermGoal!.isNotEmpty) {
       buffer.writeln('- 단기 목표: $shortTermGoal');
+    }
+    if (additionalInfo != null && additionalInfo!.isNotEmpty) {
+      buffer.writeln('- 요즘 주로 하는 일: $additionalInfo');
+    }
+
+    if (extraInfo != null && extraInfo!.isNotEmpty) {
+      buffer.writeln('- 추가적인 설명: $extraInfo'); // 💡 프롬프트에 추가
     }
 
     // 카테고리별 스타일 답변 표시
@@ -160,9 +166,8 @@ class UserProfile {
       buffer.writeln('- 성격/행동 특성: ${keywords.join(', ')}');
     }
 
-    if (additionalInfo != null && additionalInfo!.isNotEmpty) {
-      buffer.writeln('- 추가 정보: $additionalInfo');
-    }
+    // 기존 additionalInfo 필드는 이제 "요즘 주로 하는 일"을 나타내므로, 라벨을 명확하게 수정
+    // (이미 위에서 "- 요즘 주로 하는 일:"로 처리)
 
     return buffer.toString();
   }
@@ -173,10 +178,10 @@ class UserProfile {
         birthYear == null &&
         (gender == null || gender!.isEmpty) &&
         (job == null || job!.isEmpty) &&
-        // 변경: isEmpty 조건 업데이트
         (longTermGoal == null || longTermGoal!.isEmpty) &&
         (shortTermGoal == null || shortTermGoal!.isEmpty) &&
         (additionalInfo == null || additionalInfo!.isEmpty) &&
+        (extraInfo == null || extraInfo!.isEmpty) && // 💡 isEmpty 조건에 추가
         keywords.isEmpty &&
         (styleAnswers == null || styleAnswers!.isEmpty);
   }

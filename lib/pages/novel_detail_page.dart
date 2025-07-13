@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/diary_model.dart';
 import '../models/comment_model.dart';
 import '../providers/diary_provider.dart';
-import '../providers/comment_provider.dart'; // CommentProvider import 추가
+import '../providers/comment_provider.dart';
 
 class NovelDetailPage extends StatefulWidget {
   final DiaryModel diary;
@@ -17,15 +17,13 @@ class NovelDetailPage extends StatefulWidget {
 
 class _NovelDetailPageState extends State<NovelDetailPage> {
   final ScrollController _scrollController = ScrollController();
-  final ScrollController _commentScrollController =
-      ScrollController(); // 댓글 스크롤 컨트롤러 추가
+  final ScrollController _commentScrollController = ScrollController();
   final TextEditingController _commentController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
 
   List<DiaryModel> _currentWeekNovels = [];
   int _currentIndex = 0;
 
-  // 댓글 관련 상태
   bool _isCommentSectionVisible = false;
   List<CommentModel> _comments = [];
 
@@ -33,14 +31,13 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
   void initState() {
     super.initState();
     _loadCurrentWeekNovels();
-    // 소설 생성 결과 로그 출력
     print(widget.diary.novel);
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
-    _commentScrollController.dispose(); // 댓글 스크롤 컨트롤러 dispose 추가
+    _commentScrollController.dispose();
     _commentController.dispose();
     _commentFocusNode.dispose();
     super.dispose();
@@ -50,15 +47,14 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     final diaryProvider = Provider.of<DiaryProvider>(context, listen: false);
     final allNovels = diaryProvider.novelHistory;
 
-    // 현재 소설과 같은 주차의 소설들 찾기
     final currentWeekKey = _getWeekKey(widget.diary.date);
     _currentWeekNovels = allNovels.where((novel) {
       return _getWeekKey(novel.date) == currentWeekKey;
     }).toList();
 
-    // 현재 소설의 인덱스 찾기
     _currentIndex = _currentWeekNovels.indexWhere((novel) =>
-        novel.date == widget.diary.date && novel.diary == widget.diary.diary);
+        novel.date == widget.diary.date &&
+        novel.userInput == widget.diary.userInput);
 
     if (_currentIndex == -1) _currentIndex = 0;
   }
@@ -74,155 +70,110 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     return Consumer2<DiaryProvider, CommentProvider>(
       builder: (context, diaryProvider, commentProvider, child) {
         final isBookmarked = diaryProvider.isBookmarked(widget.diary);
-        // 현재 일기의 댓글 가져오기
         _comments = commentProvider.getCommentsForDiary(widget.diary);
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF5E6A3), // 노란색 배경
+          backgroundColor: const Color(0xFFF5E6A3),
           appBar: AppBar(
             backgroundColor: const Color(0xFFF5E6A3),
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(
-                Icons.arrow_back_ios,
-                color: Colors.black,
-                size: 20,
-              ),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              icon: const Icon(Icons.arrow_back_ios,
+                  color: Colors.black, size: 20),
+              onPressed: () => Navigator.of(context).pop(),
             ),
             title: Text(
               _formatDateTime(widget.diary.date),
               style: const TextStyle(
-                color: Colors.black,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+                  color: Colors.black,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600),
             ),
             centerTitle: true,
             actions: [
-              // 북마크 표시 (상단)
               if (isBookmarked)
                 Container(
                   margin: const EdgeInsets.only(right: 16),
-                  child: const Icon(
-                    Icons.bookmark,
-                    color: Color(0xFF007AFF),
-                    size: 24,
-                  ),
+                  child: const Icon(Icons.bookmark,
+                      color: Color(0xFF007AFF), size: 24),
                 ),
             ],
           ),
           body: Column(
             children: [
-              // 스크롤 가능한 소설 내용 (흰색 배경)
               Expanded(
                 child: Container(
                   width: double.infinity,
-                  color: Colors.white, // 텍스트 영역은 흰색 배경
+                  color: Colors.white,
                   child: SingleChildScrollView(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 내가 쓴 글 섹션
                         const Text(
                           '<내가 쓴 글>',
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black54,
-                          ),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black54),
                         ),
-
                         const SizedBox(height: 12),
-
-                        // 원본 일지 내용
                         Text(
-                          widget.diary.diary,
+                          widget.diary.userInput,
                           style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.black,
-                            height: 1.6,
-                          ),
+                              fontSize: 16, color: Colors.black, height: 1.6),
                         ),
-
                         const SizedBox(height: 30),
-
-                        // 1편 제목
                         Text(
                           _extractFirstNovelTitle(widget.diary.novel),
                           style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFF5E6A3),
-                          ),
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFF5E6A3)),
                         ),
-
                         const SizedBox(height: 16),
-
-                        // 1편 내용
                         Text(
                           _extractFirstNovelContent(widget.diary.novel),
                           style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.black,
-                            height: 1.6,
-                          ),
+                              fontSize: 16, color: Colors.black, height: 1.6),
                         ),
-
                         const SizedBox(height: 30),
-
-                        // 2편이 있다면 표시
                         if (_hasSecondNovel(widget.diary.novel)) ...[
                           Text(
                             _extractSecondNovelTitle(widget.diary.novel),
                             style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF007AFF),
-                            ),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF007AFF)),
                           ),
                           const SizedBox(height: 16),
                           Text(
                             _extractSecondNovelContent(widget.diary.novel),
                             style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.black,
-                              height: 1.6,
-                            ),
+                                fontSize: 16, color: Colors.black, height: 1.6),
                           ),
                         ],
-
-                        const SizedBox(height: 50), // 하단 버튼을 위한 여백
+                        const SizedBox(height: 50),
                       ],
                     ),
                   ),
                 ),
               ),
-
-              // 댓글 섹션 (조건부 표시)
               if (_isCommentSectionVisible) _buildCommentSection(),
-
-              // 하단 네비게이션 바
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: const BoxDecoration(
-                  color: Color(0xFFF5E6A3), // 동일한 노란색 배경
+                  color: Color(0xFFF5E6A3),
                   border: Border(
-                    top: BorderSide(color: Colors.black12, width: 0.5),
-                  ),
+                      top: BorderSide(color: Colors.black12, width: 0.5)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // 왼쪽: 북마크 + 댓글 버튼
                     Row(
                       children: [
-                        // 북마크 버튼
                         GestureDetector(
                           onTap: () => _toggleBookmark(context, diaryProvider),
                           child: Container(
@@ -243,10 +194,7 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                             ),
                           ),
                         ),
-
                         const SizedBox(width: 8),
-
-                        // 댓글 버튼
                         GestureDetector(
                           onTap: _toggleCommentSection,
                           child: Container(
@@ -267,20 +215,16 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                                     child: Container(
                                       padding: const EdgeInsets.all(2),
                                       decoration: const BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle,
-                                      ),
+                                          color: Colors.red,
+                                          shape: BoxShape.circle),
                                       constraints: const BoxConstraints(
-                                        minWidth: 16,
-                                        minHeight: 16,
-                                      ),
+                                          minWidth: 16, minHeight: 16),
                                       child: Text(
                                         '${_comments.length}',
                                         style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold),
                                         textAlign: TextAlign.center,
                                       ),
                                     ),
@@ -291,11 +235,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                         ),
                       ],
                     ),
-
-                    // 오른쪽: 네비게이션 버튼들
                     Row(
                       children: [
-                        // 이전 기록으로 이동
                         IconButton(
                           onPressed:
                               _currentIndex < _currentWeekNovels.length - 1
@@ -309,16 +250,11 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                             size: 28,
                           ),
                         ),
-                        // 목록으로 이동
                         IconButton(
                           onPressed: _showWeekList,
-                          icon: const Icon(
-                            Icons.menu,
-                            color: Colors.black54,
-                            size: 24,
-                          ),
+                          icon: const Icon(Icons.menu,
+                              color: Colors.black54, size: 24),
                         ),
-                        // 다음 기록으로 이동
                         IconButton(
                           onPressed: _currentIndex > 0 ? _goToNext : null,
                           icon: Icon(
@@ -341,7 +277,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     );
   }
 
-  // 댓글 섹션 위젯
+  // 💡 --- 여기서부터 생략되었던 모든 함수들을 다시 포함시켰습니다 --- 💡
+
   Widget _buildCommentSection() {
     return Container(
       height: 300, // 고정 높이
@@ -353,7 +290,6 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
       ),
       child: Column(
         children: [
-          // 댓글 헤더
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
@@ -364,67 +300,51 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
             ),
             child: Row(
               children: [
-                const Icon(
-                  Icons.chat_bubble_outline,
-                  size: 18,
-                  color: Colors.black54,
-                ),
+                const Icon(Icons.chat_bubble_outline,
+                    size: 18, color: Colors.black54),
                 const SizedBox(width: 8),
                 Text(
                   '댓글 ${_comments.length}',
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87),
                 ),
                 const Spacer(),
                 GestureDetector(
                   onTap: _toggleCommentSection,
-                  child: const Icon(
-                    Icons.close,
-                    size: 20,
-                    color: Colors.black54,
-                  ),
+                  child:
+                      const Icon(Icons.close, size: 20, color: Colors.black54),
                 ),
               ],
             ),
           ),
-
-          // 댓글 목록
           Expanded(
             child: _comments.isEmpty
                 ? const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 48,
-                          color: Colors.grey,
-                        ),
+                        Icon(Icons.chat_bubble_outline,
+                            size: 48, color: Colors.grey),
                         SizedBox(height: 12),
                         Text(
                           '아직 댓글이 없습니다',
                           style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
+                              color: Colors.grey,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500),
                         ),
                         SizedBox(height: 4),
                         Text(
                           '첫 번째 댓글을 남겨보세요!',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 14,
-                          ),
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
                         ),
                       ],
                     ),
                   )
                 : ListView.builder(
-                    controller: _commentScrollController, // 스크롤 컨트롤러 추가
+                    controller: _commentScrollController,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     itemCount: _comments.length,
                     itemBuilder: (context, index) {
@@ -433,14 +353,10 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                     },
                   ),
           ),
-
-          // 댓글 입력창
           Container(
             padding: const EdgeInsets.all(12),
             decoration: const BoxDecoration(
-              border: Border(
-                top: BorderSide(color: Colors.grey, width: 0.3),
-              ),
+              border: Border(top: BorderSide(color: Colors.grey, width: 0.3)),
             ),
             child: Row(
               children: [
@@ -452,10 +368,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                     style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
                       hintText: '댓글을 입력해주세요...',
-                      hintStyle: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 14,
-                      ),
+                      hintStyle:
+                          const TextStyle(color: Colors.grey, fontSize: 14),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
                         borderSide: BorderSide(color: Colors.grey.shade300),
@@ -465,9 +379,7 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                         borderSide: const BorderSide(color: Color(0xFF007AFF)),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
+                          horizontal: 16, vertical: 10),
                     ),
                   ),
                 ),
@@ -477,14 +389,9 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: const BoxDecoration(
-                      color: Color(0xFF007AFF),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.send,
-                      color: Colors.white,
-                      size: 18,
-                    ),
+                        color: Color(0xFF007AFF), shape: BoxShape.circle),
+                    child:
+                        const Icon(Icons.send, color: Colors.white, size: 18),
                   ),
                 ),
               ],
@@ -495,7 +402,6 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     );
   }
 
-  // 개별 댓글 아이템 위젯
   Widget _buildCommentItem(CommentModel comment) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -510,25 +416,18 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
           Text(
             comment.content,
             style: const TextStyle(
-              fontSize: 14,
-              color: Colors.black87,
-              height: 1.4,
-            ),
+                fontSize: 14, color: Colors.black87, height: 1.4),
           ),
           const SizedBox(height: 6),
           Text(
             _formatCommentTime(comment.createdAt),
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.grey,
-            ),
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ],
       ),
     );
   }
 
-  // 댓글 섹션 토글
   void _toggleCommentSection() {
     final commentProvider =
         Provider.of<CommentProvider>(context, listen: false);
@@ -537,10 +436,7 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     setState(() {
       _isCommentSectionVisible = !_isCommentSectionVisible;
       if (_isCommentSectionVisible) {
-        // 댓글 영역이 열릴 때 키보드 포커스 해제
         _commentFocusNode.unfocus();
-
-        // 댓글이 있다면 맨 아래로 스크롤
         if (currentComments.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (_commentScrollController.hasClients) {
@@ -556,7 +452,6 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     });
   }
 
-  // 댓글 추가
   void _addComment() async {
     final content = _commentController.text.trim();
     if (content.isEmpty) return;
@@ -564,7 +459,6 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     final commentProvider =
         Provider.of<CommentProvider>(context, listen: false);
 
-    // 댓글 추가
     final success = await commentProvider.addComment(
       content: content,
       diary: widget.diary,
@@ -572,11 +466,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
 
     if (success) {
       _commentController.clear();
-
-      // 키보드 숨기기
       _commentFocusNode.unfocus();
 
-      // 댓글 목록 맨 아래로 스크롤
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_commentScrollController.hasClients) {
           _commentScrollController.animateTo(
@@ -587,46 +478,34 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
         }
       });
 
-      // 성공 피드백
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('댓글이 추가되었습니다'),
-            duration: Duration(seconds: 1),
-          ),
+              content: Text('댓글이 추가되었습니다'), duration: Duration(seconds: 1)),
         );
       }
     } else {
-      // 실패 피드백
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('댓글 추가에 실패했습니다'),
-            duration: Duration(seconds: 2),
-            backgroundColor: Colors.red,
-          ),
+              content: Text('댓글 추가에 실패했습니다'),
+              duration: Duration(seconds: 2),
+              backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  // 댓글 시간 포맷팅
   String _formatCommentTime(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
-    if (difference.inDays > 0) {
-      return '${difference.inDays}일 전';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}시간 전';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}분 전';
-    } else {
-      return '방금 전';
-    }
+    if (difference.inDays > 0) return '${difference.inDays}일 전';
+    if (difference.inHours > 0) return '${difference.inHours}시간 전';
+    if (difference.inMinutes > 0) return '${difference.inMinutes}분 전';
+    return '방금 전';
   }
 
-  // 북마크 토글 기능
   void _toggleBookmark(
       BuildContext context, DiaryProvider diaryProvider) async {
     await diaryProvider.toggleBookmarkForDiary(widget.diary);
@@ -642,31 +521,26 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     }
   }
 
-  // 이전 소설로 이동
   void _goToPrevious() {
     if (_currentIndex < _currentWeekNovels.length - 1) {
       final previousNovel = _currentWeekNovels[_currentIndex + 1];
       Navigator.of(context).pushReplacement(
         CupertinoPageRoute(
-          builder: (context) => NovelDetailPage(diary: previousNovel),
-        ),
+            builder: (context) => NovelDetailPage(diary: previousNovel)),
       );
     }
   }
 
-  // 다음 소설로 이동
   void _goToNext() {
     if (_currentIndex > 0) {
       final nextNovel = _currentWeekNovels[_currentIndex - 1];
       Navigator.of(context).pushReplacement(
         CupertinoPageRoute(
-          builder: (context) => NovelDetailPage(diary: nextNovel),
-        ),
+            builder: (context) => NovelDetailPage(diary: nextNovel)),
       );
     }
   }
 
-  // 주차별 소설 목록 팝업
   void _showWeekList() {
     showCupertinoModalPopup(
       context: context,
@@ -678,13 +552,11 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
         ),
         child: Column(
           children: [
-            // 헤더
             Container(
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey, width: 0.5),
-                ),
+                border:
+                    Border(bottom: BorderSide(color: Colors.grey, width: 0.5)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -693,9 +565,7 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                   Text(
                     '${_getWeekKey(widget.diary.date)}의 기록',
                     style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
+                        fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                   CupertinoButton(
                     padding: EdgeInsets.zero,
@@ -705,8 +575,6 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                 ],
               ),
             ),
-
-            // 소설 목록
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
@@ -717,13 +585,12 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
 
                   return GestureDetector(
                     onTap: () {
-                      Navigator.pop(context); // 팝업 닫기
+                      Navigator.pop(context);
                       if (!isCurrentNovel) {
-                        // 다른 소설로 이동
                         Navigator.of(context).pushReplacement(
                           CupertinoPageRoute(
-                            builder: (context) => NovelDetailPage(diary: novel),
-                          ),
+                              builder: (context) =>
+                                  NovelDetailPage(diary: novel)),
                         );
                       }
                     },
@@ -750,11 +617,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                               if (isCurrentNovel)
                                 const Padding(
                                   padding: EdgeInsets.only(right: 8),
-                                  child: Icon(
-                                    Icons.play_arrow,
-                                    color: Color(0xFF007AFF),
-                                    size: 20,
-                                  ),
+                                  child: Icon(Icons.play_arrow,
+                                      color: Color(0xFF007AFF), size: 20),
                                 ),
                               Expanded(
                                 child: Text(
@@ -774,12 +638,11 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            _getPreviewText(novel.diary),
+                            _getPreviewText(novel.userInput),
                             style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.black54,
-                              height: 1.4,
-                            ),
+                                fontSize: 14,
+                                color: Colors.black54,
+                                height: 1.4),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -796,15 +659,12 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     );
   }
 
-  // 날짜 포맷팅
   String _formatDateTime(DateTime date) {
     final weekdays = ['일', '월', '화', '수', '목', '금', '토'];
     final weekday = weekdays[date.weekday % 7];
-
     return '${date.month}월 ${date.day}일 (${weekday}) ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
-  // 미리보기 텍스트
   String _getPreviewText(String diary) {
     if (diary.length > 50) {
       return '${diary.substring(0, 47)}...';
@@ -812,120 +672,94 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     return diary;
   }
 
-// 첫 번째 소설의 제목 추출
   String _extractFirstNovelTitle(String novel) {
     final lines = novel.split('\n');
     for (final line in lines) {
       final trimmedLine = line.trim();
       if (trimmedLine.startsWith('**What you did**')) {
-        // **What you did** -> <What you did>
-        String title = trimmedLine.replaceAll('**', ''); // ** 제거
+        String title = trimmedLine.replaceAll('**', '');
         return '<$title>';
       } else if (trimmedLine.startsWith('### What you did')) {
-        // ### What you did -> <What you did>
-        String title = trimmedLine.substring(4); // ### 제거
+        String title = trimmedLine.substring(4);
         return '<$title>';
       }
     }
-    return '<What you did>'; // 기본값
+    return '<What you did>';
   }
 
-// 첫 번째 소설의 내용 추출
   String _extractFirstNovelContent(String novel) {
     final lines = novel.split('\n');
     bool foundFirst = false;
     final List<String> content = [];
-
     for (final line in lines) {
       final trimmedLine = line.trim();
       if (trimmedLine.startsWith('**What you did**') ||
           trimmedLine.startsWith('### What you did')) {
         foundFirst = true;
-        continue; // 제목 라인은 건너뛰기
+        continue;
       }
-
       if (trimmedLine.startsWith('**What If') ||
           trimmedLine.startsWith('### What If')) {
-        break; // 2편 시작되면 종료
+        break;
       }
-
       if (foundFirst) {
-        // 빈 줄도 포함하여 원본 형태 유지
         content.add(line);
       }
     }
-
     if (content.isNotEmpty) {
-      // 앞뒤 빈 줄 제거
-      while (content.isNotEmpty && content.first.trim().isEmpty) {
+      while (content.isNotEmpty && content.first.trim().isEmpty)
         content.removeAt(0);
-      }
-      while (content.isNotEmpty && content.last.trim().isEmpty) {
+      while (content.isNotEmpty && content.last.trim().isEmpty)
         content.removeLast();
-      }
       return content.join('\n');
     } else {
-      // 대체 로직: 전체 텍스트의 앞쪽 절반
       final allText = novel.replaceAll('**', '').replaceAll('###', '');
       final halfPoint = allText.length ~/ 2;
       return allText.substring(0, halfPoint).trim();
     }
   }
 
-// 두 번째 소설이 있는지 확인
   bool _hasSecondNovel(String novel) {
     return novel.contains('**What If') || novel.contains('### What If');
   }
 
-// 두 번째 소설의 제목 추출
   String _extractSecondNovelTitle(String novel) {
     final lines = novel.split('\n');
     for (final line in lines) {
       final trimmedLine = line.trim();
       if (trimmedLine.startsWith('**What If')) {
-        // **What If you didn't** -> <What If you didn't>
-        String title = trimmedLine.replaceAll('**', ''); // ** 제거
+        String title = trimmedLine.replaceAll('**', '');
         return '<$title>';
       } else if (trimmedLine.startsWith('### What If')) {
-        // ### What If you didn't -> <What If you didn't>
-        String title = trimmedLine.substring(4); // ### 제거
+        String title = trimmedLine.substring(4);
         return '<$title>';
       }
     }
-    return '<What If you didn\'t>'; // 기본값
+    return '<What If you didn\'t>';
   }
 
-// 두 번째 소설의 내용 추출
   String _extractSecondNovelContent(String novel) {
     final lines = novel.split('\n');
     bool foundSecond = false;
     final List<String> content = [];
-
     for (final line in lines) {
       final trimmedLine = line.trim();
       if (trimmedLine.startsWith('**What If') ||
           trimmedLine.startsWith('### What If')) {
         foundSecond = true;
-        continue; // 제목 라인은 건너뛰기
+        continue;
       }
-
       if (foundSecond) {
-        // 빈 줄도 포함하여 원본 형태 유지
         content.add(line);
       }
     }
-
     if (content.isNotEmpty) {
-      // 앞뒤 빈 줄 제거
-      while (content.isNotEmpty && content.first.trim().isEmpty) {
+      while (content.isNotEmpty && content.first.trim().isEmpty)
         content.removeAt(0);
-      }
-      while (content.isNotEmpty && content.last.trim().isEmpty) {
+      while (content.isNotEmpty && content.last.trim().isEmpty)
         content.removeLast();
-      }
       return content.join('\n');
     } else {
-      // 대체 로직: 전체 텍스트의 뒤쪽 절반
       final allText = novel.replaceAll('**', '').replaceAll('###', '');
       final halfPoint = allText.length ~/ 2;
       return allText.substring(halfPoint).trim();

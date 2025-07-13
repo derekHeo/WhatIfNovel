@@ -16,17 +16,17 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   late TextEditingController _yearController;
   late TextEditingController _dayController;
   late TextEditingController _jobController;
-  // 변경: 'activitiesController'를 'longTermGoalController'와 'shortTermGoalController'로 분리
   late TextEditingController _longTermGoalController;
   late TextEditingController _shortTermGoalController;
-  late TextEditingController _additionalInfoController;
+  late TextEditingController _extraInfoController; // '추가적인 설명'
+  late TextEditingController _additionalInfoController; // '요즘 주로 하는 일'에 해당
 
   int? _selectedMonth;
   String? _selectedGender;
 
   final List<String> _genderOptions = ['남성', '여성', '기타'];
 
-  // 5가지 스타일 문항 데이터 (업데이트된 버전)
+  // 5가지 스타일 문항 데이터 (기존과 동일)
   final Map<String, List<Map<String, String>>> _styleQuestions = {
     '상황 대처 스타일': [
       {'emoji': '🧍', 'text': '혼자서 끙끙 앓는 편이에요'},
@@ -85,10 +85,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     _yearController = TextEditingController();
     _dayController = TextEditingController();
     _jobController = TextEditingController();
-    // 변경: 컨트롤러 초기화
     _longTermGoalController = TextEditingController();
     _shortTermGoalController = TextEditingController();
     _additionalInfoController = TextEditingController();
+    _extraInfoController = TextEditingController();
   }
 
   void _initializeStyleAnswers() {
@@ -103,7 +103,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         Provider.of<UserProfileProvider>(context, listen: false);
     final profile = profileProvider.userProfile;
 
-    // 이름, 생년월일 등 다른 필드 로딩 (이 부분은 기존과 동일)
     _nameController.text = profile.name;
     _yearController.text = profile.birthYear?.toString() ?? '';
     _dayController.text = profile.birthDay?.toString() ?? '';
@@ -113,21 +112,14 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     _longTermGoalController.text = profile.longTermGoal ?? '';
     _shortTermGoalController.text = profile.shortTermGoal ?? '';
     _additionalInfoController.text = profile.additionalInfo ?? '';
+    _extraInfoController.text = profile.extraInfo ?? '';
 
-    // --- 💡 여기가 수정된 핵심 로직입니다 ---
-
-    // 1. 새로운 styleAnswers 데이터가 있으면 우선적으로 로드합니다.
     if (profile.styleAnswers != null && profile.styleAnswers!.isNotEmpty) {
-      // Provider에서 불러온 맵으로 현재 페이지의 선택 상태(_selectedStyleAnswers)를 교체합니다.
-      // Map.from과 List.from으로 깊은 복사를 해주는 것이 안전합니다.
       _selectedStyleAnswers = Map.from(profile.styleAnswers!.map(
         (key, value) => MapEntry(key, List<String>.from(value)),
       ));
-    }
-    // 2. styleAnswers 데이터가 없을 경우에만, 기존 keywords 데이터로 하위 호환성을 유지합니다.
-    else if (profile.keywords.isNotEmpty) {
+    } else if (profile.keywords.isNotEmpty) {
       final firstCategory = _styleQuestions.keys.first;
-      // 이전과 같이 첫 번째 카테고리에 모든 키워드를 할당합니다.
       _selectedStyleAnswers[firstCategory] = List.from(profile.keywords);
     }
   }
@@ -138,10 +130,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     _yearController.dispose();
     _dayController.dispose();
     _jobController.dispose();
-    // 변경: 컨트롤러 dispose
     _longTermGoalController.dispose();
     _shortTermGoalController.dispose();
     _additionalInfoController.dispose();
+    _extraInfoController.dispose();
     super.dispose();
   }
 
@@ -184,12 +176,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ... (상단 UI 코드는 변경 없음)
+            // 상단 UI (기존과 동일)
             const Center(
               child: Column(
                 children: [
                   Text(
-                    '자세한 입력 해주실 수록',
+                    '자세히 입력 해주실 수록',
                     style: TextStyle(fontSize: 16, color: Colors.black87),
                   ),
                   Text(
@@ -202,10 +194,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 ],
               ),
             ),
-
             const SizedBox(height: 8),
-
-            // 정보 사용 안내
             Center(
               child: GestureDetector(
                 onTap: _showDataUsageInfo,
@@ -226,19 +215,15 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 ),
               ),
             ),
-
             const SizedBox(height: 30),
 
-            // 이름 입력
+            // 기본 정보 입력 (기존과 동일)
             _buildTextField(
               controller: _nameController,
               label: '이름',
               placeholder: '이름',
             ),
-
             const SizedBox(height: 20),
-
-            // 생년월일 입력
             Row(
               children: [
                 Expanded(
@@ -281,10 +266,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 ),
               ],
             ),
-
             const SizedBox(height: 20),
-
-            // 성별 선택
             _buildDropdownField(
               value: _selectedGender,
               items: _genderOptions
@@ -300,47 +282,89 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 });
               },
             ),
-
             const SizedBox(height: 20),
-
-            // 직업 입력
             _buildTextField(
               controller: _jobController,
               placeholder: '직업 - ex) 직장인, 대학생',
             ),
+            const SizedBox(height: 30),
 
-            const SizedBox(height: 20),
+            // --- 💡 여기가 수정된 부분입니다 ---
 
-            // --- 변경된 부분 시작 ---
-            // 장기적인 목표
-            _buildTextArea(
-              controller: _longTermGoalController,
-              placeholder: '현재 가지고 계신 장기적인 목표가 있나요?',
-              maxLines: 4,
+            // 질문 1: 요즘 주로 어떤 일들을 하고 지내시나요?
+            const Text(
+              '요즘 주로 어떤 일들을 하고 지내시나요?',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
             ),
-
-            const SizedBox(height: 20),
-
-            // 단기적인 목표
-            _buildTextArea(
-              controller: _shortTermGoalController,
-              placeholder: '현재 가지고 계신 단기적인 목표가 있나요?',
-              maxLines: 4,
-            ),
-            // --- 변경된 부분 끝 ---
-
-            const SizedBox(height: 20),
-
-            // 추가 정보
+            const SizedBox(height: 12),
             _buildTextArea(
               controller: _additionalInfoController,
-              placeholder: '추가적인 설명을 자유롭게 적어주세요!\n(취미, 가치관, 중요, 라이프 스타일 등)',
-              maxLines: 4,
+              placeholder: 'ex) 시험 공부, 자격증 준비 등',
+              maxLines: 3,
             ),
 
             const SizedBox(height: 30),
 
-            // ... (스타일 문항 UI 코드는 변경 없음)
+            // 질문 2: 앞으로 몇 달 또는 몇 년 안에 이루고 싶은 목표
+            const Text(
+              '앞으로 몇 달 / 몇 년 안에 이루고 싶은 목표를 적어주세요.',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildTextArea(
+              controller: _longTermGoalController,
+              placeholder: 'ex) 10kg 감량, 공무원 시험 합격 등',
+              maxLines: 3,
+            ),
+
+            const SizedBox(height: 30),
+
+            // 질문 3: 이번 주나 이번 달 안에 이루고 싶은 목표
+            const Text(
+              '이번 주나 이번 달 안에 이루고 싶은 목표를 적어주세요.',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildTextArea(
+              controller: _shortTermGoalController,
+              placeholder: 'ex) 시험 과목 정리, 논문 초안 작성 등',
+              maxLines: 3,
+            ),
+
+            const SizedBox(height: 30),
+
+            const Text(
+              '추가적인 설명을 자유롭게 적어주세요.',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildTextArea(
+              controller: _extraInfoController,
+              placeholder: 'ex) 취미, 가치관, 종교, 라이프 스타일 등',
+              maxLines: 3,
+            ),
+
+            // --- 수정된 부분 끝 ---
+
+            const SizedBox(height: 30),
+
+            // 스타일 문항 (기존과 동일)
             const Text(
               '당신을 가장 잘 표현하는 스타일을 골라주세요!',
               style: TextStyle(
@@ -349,10 +373,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 color: Colors.black87,
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // 5가지 스타일 문항
             ..._styleQuestions.entries.map((entry) {
               final category = entry.key;
               final options = entry.value;
@@ -362,8 +383,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 20),
-
-                  // 카테고리 제목
                   Row(
                     children: [
                       Container(
@@ -393,9 +412,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 8),
-
                   Text(
                     '"${_getCategoryDescription(category)}"',
                     style: const TextStyle(
@@ -404,10 +421,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                       fontStyle: FontStyle.italic,
                     ),
                   ),
-
                   const SizedBox(height: 12),
-
-                  // 선택지들
                   ...options.map((option) {
                     final emoji = option['emoji']!;
                     final text = option['text']!;
@@ -468,7 +482,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 ],
               );
             }).toList(),
-
             const SizedBox(height: 50),
           ],
         ),
@@ -476,7 +489,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
   }
 
-  // ... (_getCategoryDescription, _getAllSelectedAnswers, _build... 메서드는 변경 없음)
+  // 나머지 헬퍼 함수들 (기존과 동일)
   String _getCategoryDescription(String category) {
     switch (category) {
       case '상황 대처 스타일':
@@ -616,12 +629,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     try {
       final profileProvider =
           Provider.of<UserProfileProvider>(context, listen: false);
-
-      // 모든 선택된 답변들을 keywords로 변환 (기존 호환성)
       final allSelectedAnswers = _getAllSelectedAnswers();
-
-      // UserProfile 모델을 생성할 때, 변경된 컨트롤러의 값을 사용합니다.
-      // ⚠️ 중요: UserProfile 클래스에 longTermGoal, shortTermGoal 필드가 추가되어야 합니다.
       final profile = UserProfile(
         name: _nameController.text.trim(),
         birthYear: _yearController.text.trim().isNotEmpty
@@ -635,7 +643,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         job: _jobController.text.trim().isNotEmpty
             ? _jobController.text.trim()
             : null,
-        // 변경: 새로운 목표 필드 저장
         longTermGoal: _longTermGoalController.text.trim().isNotEmpty
             ? _longTermGoalController.text.trim()
             : null,
@@ -645,9 +652,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         additionalInfo: _additionalInfoController.text.trim().isNotEmpty
             ? _additionalInfoController.text.trim()
             : null,
-        keywords: allSelectedAnswers, // 호환성을 위해 유지
-        styleAnswers: Map.from(_selectedStyleAnswers), // 카테고리별 답변 저장
-        agreeToDataUsage: true, // 기본값으로 설정
+        extraInfo: _extraInfoController.text.trim().isNotEmpty // 💡 새로 추가
+            ? _extraInfoController.text.trim()
+            : null,
+        keywords: allSelectedAnswers,
+        styleAnswers: Map.from(_selectedStyleAnswers),
+        agreeToDataUsage: true,
       );
 
       await profileProvider.saveProfile(profile);

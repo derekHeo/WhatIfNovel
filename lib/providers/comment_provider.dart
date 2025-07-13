@@ -14,7 +14,7 @@ class CommentProvider extends ChangeNotifier {
   List<CommentModel> get comments => _comments;
   bool get isLoading => _isLoading;
 
-  /// Hive Box 초기화 (DiaryProvider와 동일한 방식)
+  /// Hive Box 초기화
   Future<void> initializeBox() async {
     try {
       _commentBox = await Hive.openBox(_boxName);
@@ -24,7 +24,7 @@ class CommentProvider extends ChangeNotifier {
     }
   }
 
-  /// 모든 댓글 로드 (DiaryProvider와 동일한 방식)
+  /// 모든 댓글 로드
   Future<void> loadAllComments() async {
     if (_commentBox == null) return;
 
@@ -36,8 +36,6 @@ class CommentProvider extends ChangeNotifier {
       _comments = commentsData
           .map((item) => CommentModel.fromMap(Map<String, dynamic>.from(item)))
           .toList();
-
-      // 날짜순으로 정렬 (최신 순)
       _comments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
       debugPrint('댓글 로드 실패: $e');
@@ -48,10 +46,9 @@ class CommentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 댓글 저장 (DiaryProvider와 동일한 방식)
+  /// 댓글 저장
   Future<void> _saveComments() async {
     if (_commentBox == null) return;
-
     try {
       await _commentBox!
           .put('comments', _comments.map((c) => c.toMap()).toList());
@@ -65,8 +62,6 @@ class CommentProvider extends ChangeNotifier {
     final diaryId = _generateDiaryId(diary);
     final diaryComments =
         _comments.where((comment) => comment.diaryId == diaryId).toList();
-
-    // 날짜순으로 정렬 (오래된 순)
     diaryComments.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return diaryComments;
   }
@@ -86,14 +81,9 @@ class CommentProvider extends ChangeNotifier {
         diaryId: diaryId,
         authorName: authorName,
       );
-
-      // 메모리에 추가
       _comments.add(newComment);
-
-      // Hive에 저장
       await _saveComments();
       notifyListeners();
-
       return true;
     } catch (e) {
       debugPrint('댓글 추가 실패: $e');
@@ -104,13 +94,9 @@ class CommentProvider extends ChangeNotifier {
   /// 댓글 삭제
   Future<bool> deleteComment(String commentId) async {
     try {
-      // 메모리에서 제거
       _comments.removeWhere((comment) => comment.id == commentId);
-
-      // Hive에 저장
       await _saveComments();
       notifyListeners();
-
       return true;
     } catch (e) {
       debugPrint('댓글 삭제 실패: $e');
@@ -123,15 +109,11 @@ class CommentProvider extends ChangeNotifier {
     try {
       final index = _comments.indexWhere((c) => c.id == commentId);
       if (index == -1) return false;
-
       final updatedComment =
           _comments[index].copyWith(content: newContent.trim());
       _comments[index] = updatedComment;
-
-      // Hive에 저장
       await _saveComments();
       notifyListeners();
-
       return true;
     } catch (e) {
       debugPrint('댓글 수정 실패: $e');
@@ -158,9 +140,10 @@ class CommentProvider extends ChangeNotifier {
 
   /// 일기별 고유 ID 생성 (날짜 + 일기 내용 해시)
   String _generateDiaryId(DiaryModel diary) {
-    // 날짜와 일기 내용을 조합해서 고유 ID 생성
+    // 💡 --- 여기가 핵심입니다 --- 💡
+    // diary.diary 대신 diary.userInput을 사용하여 고유 ID를 생성합니다.
     final dateString = diary.date.toIso8601String().split('T')[0]; // YYYY-MM-DD
-    final contentHash = diary.diary.hashCode.toString();
+    final contentHash = diary.userInput.hashCode.toString();
     return '${dateString}_$contentHash';
   }
 
@@ -174,7 +157,6 @@ class CommentProvider extends ChangeNotifier {
   /// 검색 기능 (댓글 내용으로 검색)
   List<CommentModel> searchComments(String query) {
     if (query.trim().isEmpty) return [];
-
     final lowercaseQuery = query.toLowerCase();
     return _comments
         .where(

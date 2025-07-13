@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import '../models/diary_model.dart';
-import '../models/user_profile.dart'; // UserProfile 모델 import 추가
+// 💡 아래 import들은 generateNovel 메서드에서 직접 사용하지 않으므로 정리 가능
+// import '../models/user_profile.dart';
+// import '../services/gpt_service.dart';
+// import '../providers/user_profile_provider.dart';
+
+// 💡 GptService는 외부에서 호출하는 것으로 가정
 import '../services/gpt_service.dart';
-import '../providers/user_profile_provider.dart';
 
 class DiaryProvider with ChangeNotifier {
   List<DiaryModel> _novelHistory = [];
@@ -30,20 +34,19 @@ class DiaryProvider with ChangeNotifier {
     await box.put('history', _novelHistory.map((d) => d.toMap()).toList());
   }
 
-  // 업데이트된 generateNovel 메서드 (중복 제거)
-  Future<void> generateNovel(String diary,
-      {UserProfileProvider? profileProvider}) async {
-    // 사용자 프로필 정보 가져오기
-    String? profileInfo;
-    if (profileProvider != null) {
-      profileInfo = profileProvider.getProfileForPrompt();
-    }
+  // 💡 --- 여기가 핵심 수정 부분입니다 --- 💡
+  // 이제 메서드는 userInput과 fullPrompt를 별도로 받습니다.
+  Future<void> generateNovel(String userInput, String fullPrompt) async {
+    // GptService에는 프로필 정보가 모두 포함된 fullPrompt를 전달합니다.
+    String novel = await GptService.generateNovelFromDiary(fullPrompt);
 
-    // GPT 서비스 호출 시 프로필 정보 전달
-    String novel = await GptService.generateNovelFromDiary(diary,
-        userProfileInfo: profileInfo);
+    // 새로운 DiaryModel 구조에 맞게 인스턴스를 생성합니다.
+    final model = DiaryModel(
+        userInput: userInput,
+        fullPrompt: fullPrompt,
+        novel: novel,
+        date: DateTime.now());
 
-    final model = DiaryModel(diary: diary, novel: novel, date: DateTime.now());
     _lastNovel = model;
     _novelHistory.insert(0, model); // 최신순
     await _saveHistory();
@@ -78,59 +81,38 @@ class DiaryProvider with ChangeNotifier {
     }
   }
 
-  // 특정 DiaryModel의 북마크 토글
+  // 💡 'diary' 필드가 'userInput'으로 변경됨에 따라 비교 로직 수정
   Future<void> toggleBookmarkForDiary(DiaryModel targetDiary) async {
     final index = _novelHistory.indexWhere((diary) =>
-        diary.date == targetDiary.date && diary.diary == targetDiary.diary);
+        diary.date == targetDiary.date &&
+        diary.userInput == targetDiary.userInput);
 
     if (index != -1) {
       await toggleBookmark(index);
     }
   }
 
-  // 북마크 상태 확인
+  // 💡 'diary' 필드가 'userInput'으로 변경됨에 따라 비교 로직 수정
   bool isBookmarked(DiaryModel diary) {
-    final index = _novelHistory
-        .indexWhere((d) => d.date == diary.date && d.diary == diary.diary);
+    final index = _novelHistory.indexWhere(
+        (d) => d.date == diary.date && d.userInput == diary.userInput);
     return index != -1 ? _novelHistory[index].isBookmarked : false;
   }
 
-  // 테스트용 더미 데이터 추가
+  // 💡 테스트 데이터도 새로운 모델 구조에 맞게 수정
   Future<void> addTestData() async {
     final testNovel = '''
 1편: 「스마트폰의 유혹」
-
-이하준, 25세. 피곤했다.
-취업 준비를 해야 하는 걸 알았지만, 의지력이 부족했다.
-
-"게임 한 번만 하고 공부하자."
-
-그 한 번은 두 번이 되고, 다섯 번이 되었고, 그렇게 2시간이 지나버렸다.
-면접은 8시에 예정되어 있었다.
-그는 7시 59분에 노트를 열었고, 머릿속 대답들은 이미 사라져 있었다.
-
-"하은님, 답변 저는 어디 계신가요?"
-"자기소개도 준비해주시면 감사하겠습니다."
-"혹시 무슨 일 있으십니까?"
-
-하은은 마우스를 움직였지만, 손끝이 떨렸다.
-답변은 만들어지지 않았다. 아니, 아예 시작도 못 했다.
-
-2편: 「다른 선택」
-
-그날 하은은 핸드폰 없이 시작하였고,
-계획표는 차근차근 진행되었다.
-
-8시 면접장에서 그는 자신감 넘치는 목소리로 대답했다.
-"제가 이 회사에 지원한 이유는..."
-
-면접관들의 고개가 끄덕였다.
-그리고 2주 후, 합격 통보를 받았다.
+... (소설 내용 생략) ...
     ''';
 
+    final testUserInput =
+        "내가 취업 준비를 해야하는데, 너무 피곤해서 게임을 한 번만 하고 잠들려고 했는데 5시간 정도해서 2시간이 지나버렸어";
+
     final testDiary = DiaryModel(
-      diary:
-          "내가 취업 준비를 해야하는데, 너무 피곤해서 게임을 한 번만 하고 잠들려고 했는데 5시간 정도해서 2시간이 지나버렸어",
+      userInput: testUserInput,
+      // 테스트 데이터에서는 userInput과 fullPrompt를 동일하게 설정해도 무방
+      fullPrompt: testUserInput,
       novel: testNovel,
       date: DateTime.now(),
     );

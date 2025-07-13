@@ -314,7 +314,6 @@ class _BookmarkPageState extends State<BookmarkPage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.grey.shade200),
-          // 북마크 항목임을 나타내는 미묘한 블루 테두리
           boxShadow: [
             BoxShadow(
               color: const Color(0xFF007AFF).withOpacity(0.05),
@@ -325,15 +324,12 @@ class _BookmarkPageState extends State<BookmarkPage> {
         ),
         child: Row(
           children: [
-            // 북마크 아이콘
             const Icon(
               Icons.bookmark,
               color: Color(0xFF007AFF),
               size: 20,
             ),
             const SizedBox(width: 12),
-
-            // 내용
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -347,8 +343,9 @@ class _BookmarkPageState extends State<BookmarkPage> {
                     ),
                   ),
                   const SizedBox(height: 8),
+                  // 💡 --- 여기가 핵심입니다 --- 💡
                   Text(
-                    _getPreviewText(diary.diary),
+                    _getPreviewText(diary.userInput),
                     style: const TextStyle(
                       fontSize: 14,
                       color: Colors.black54,
@@ -393,10 +390,10 @@ class _BookmarkPageState extends State<BookmarkPage> {
     return '${date.month}월 ${date.day}일 (${weekday}) ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
-  String _getPreviewText(String diary) {
-    if (diary.length > 100) {
-      return '${diary.substring(0, 97)}...';
+  String _getPreviewText(String text) {
+    if (text.length > 100) {
+      return '${text.substring(0, 97)}...';
     }
-    return diary;
+    return text;
   }
 }

@@ -295,8 +295,10 @@ class _DiaryListPageState extends State<DiaryListPage> {
               ),
             ),
             const SizedBox(height: 8),
+            // 💡 --- 여기가 핵심입니다 --- 💡
+            // 미리보기 텍스트를 만들 때 'diary' 대신 'userInput'을 사용합니다.
             Text(
-              _getPreviewText(diary.diary),
+              _getPreviewText(diary.userInput),
               style: const TextStyle(
                 fontSize: 14,
                 color: Colors.black54,
@@ -338,10 +340,11 @@ class _DiaryListPageState extends State<DiaryListPage> {
     return '${date.month}월 ${date.day}일 (${weekday}) ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
-  String _getPreviewText(String diary) {
-    if (diary.length > 100) {
-      return '${diary.substring(0, 97)}...';
+  String _getPreviewText(String text) {
+    // 💡 변수 이름을 diary -> text로 변경하여 명확하게 함
+    if (text.length > 100) {
+      return '${text.substring(0, 97)}...';
     }
-    return diary;
+    return text;
   }
 }
