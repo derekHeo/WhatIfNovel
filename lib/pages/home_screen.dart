@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:provider/provider.dart';
-import '../providers/diary_provider.dart';
-import '../providers/user_profile_provider.dart';
-import '../models/diary_model.dart';
-import 'settings_screen.dart';
+import 'goal_setting_screen.dart';
 import 'diary_list_page.dart';
-import 'novel_detail_page.dart';
-import 'bookmark_page.dart';
+import 'settings_screen.dart';
+
+// import 'package:provider/provider.dart';
+// import '../providers/diary_provider.dart';
+// import '../providers/user_profile_provider.dart';
+// import '../models/diary_model.dart';
+// import 'settings_screen.dart';
+// import 'diary_list_page.dart';
+// import 'novel_detail_page.dart';
+// import 'bookmark_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,312 +21,297 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _isLoading = false;
+  // --- 💡 더미 데이터 부분 💡 ---
+  // 나중에 이 부분들을 실제 Provider나 Service에서 받아온 데이터로 교체하면 됩니다.
 
-  int? _studyHours;
-  int? _sleepHours;
-  int? _exerciseHours;
+  // 상단 차트에 표시될 스크린 타임 총합
+  final String totalScreenTime = "4시간 23분";
 
-  // 💡 --- 여기가 핵심 수정 부분입니다 --- 💡
-  Future<void> _generateNovelFromSelection() async {
-    // 1. 시간 선택 유효성 검사
-    if (_studyHours == null || _sleepHours == null || _exerciseHours == null) {
-      _showAlert('모든 시간을 선택해주세요.');
-      return;
-    }
-    if ((_studyHours! + _sleepHours!) > 24) {
-      _showAlert('선택한 시간의 총합(공부+수면)이 24시간을 초과할 수 없습니다. 다시 선택해주세요.');
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final diaryProvider = Provider.of<DiaryProvider>(context, listen: false);
-      final profileProvider =
-          Provider.of<UserProfileProvider>(context, listen: false);
-      final userProfile = profileProvider.userProfile;
-
-      // 2. 사용자에게 보여줄 입력값 (userInput) 정의
-      final userInput =
-          "하루 공부 ${_studyHours}시간, 하루 수면 ${_sleepHours}시간, 일주일에 운동 ${_exerciseHours}시간";
-
-      // 3. AI에게 전달할 상세 프로필 정보 (profileDetails) 정의
-      final profileDetails = """
-      - 이름: ${userProfile.name}
-      - 직업: ${userProfile.job ?? '정보 없음'}
-      - 성별: ${userProfile.gender ?? '정보 없음'}
-      - 요즘 하는 일: ${userProfile.additionalInfo ?? '정보 없음'}
-      - 단기 목표: ${userProfile.shortTermGoal ?? '정보 없음'}
-      - 장기 목표: ${userProfile.longTermGoal ?? '정보 없음'}
-      - 추가적인 설명: ${userProfile.extraInfo ?? '정보 없음'}
-      - 성격/스타일: ${userProfile.styleAnswers?.values.expand((x) => x).join(', ') ?? '정보 없음'}
-      """;
-
-      // 4. AI에게 보낼 최종 프롬프트 (fullPrompt) 조합
-      final fullPrompt =
-          "아래 정보를 가진 사람의 미래를 예측해서 소설을 써줘.\n\n[프로필 정보]\n$profileDetails\n\n[선택한 시간]\n$userInput";
-
-      // 5. 수정한 Provider의 generateNovel 함수 호출
-      await diaryProvider.generateNovel(userInput, fullPrompt);
-
-      final lastNovel = diaryProvider.lastNovel;
-      if (lastNovel != null) {
-        _showSuccessAlert(lastNovel);
-      } else {
-        _showAlert('소설 생성에 실패했습니다.');
-      }
-    } catch (e) {
-      _showAlert('오류가 발생했습니다: ${e.toString()}');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  void _showAlert(String message) {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        content: Text(message),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('확인'),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSuccessAlert(DiaryModel generatedNovel) {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('완료!'),
-        content: const Text('소설이 생성되었습니다!\n바로 확인하시겠어요?'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('나중에'),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            child: const Text('확인'),
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).push(
-                CupertinoPageRoute(
-                  builder: (context) => NovelDetailPage(diary: generatedNovel),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
+  // 앱별 목표 사용 시간 더미 데이터 리스트
+  final List<Map<String, dynamic>> appUsageData = [
+    {
+      'icon': Icons.camera_alt_outlined, // 인스타그램 대체 아이콘
+      'goal': 3.0, // 목표 시간 (시간 단위)
+      'usage': 2.5, // 실제 사용 시간 (시간 단위)
+    },
+    {
+      'icon': Icons.play_circle_outline, // 유튜브 대체 아이콘
+      'goal': 1.0,
+      'usage': 1.2, // 목표 초과
+    },
+    {
+      'icon': Icons.chat_bubble_outline, // 채팅 앱 대체 아이콘
+      'goal': 1.0,
+      'usage': 0.4,
+    },
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFCF3),
+      // Figma 디자인의 배경색과 유사한 색상으로 설정
+      backgroundColor: const Color(0xFFFDFBFA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFFCF3),
+        backgroundColor: Colors.transparent, // 배경과 동일하게 투명 처리
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
             Icons.menu,
             color: Colors.black,
-            size: 24,
+            size: 28,
           ),
           onPressed: () {
-            Navigator.of(context).push(
-              CupertinoPageRoute(
-                builder: (context) => const SettingsScreen(),
-              ),
+            // TODO: 사이드 메뉴 또는 설정 페이지로 이동하는 로직 구현
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SettingsScreen()),
             );
           },
         ),
-        title: const Text(''),
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const Text(
-              '선택한 목표 시간을 바탕으로,\nAI가 다른 미래를 예측해 보여드립니다.\n지금 당신의 선택이 어떤 결과를 만들 수 있을지 확인해보세요.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Color(0xFF333333),
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 60),
-            _buildTimeSelectorRow('하루에', '공부', _studyHours, (value) {
-              setState(() {
-                _studyHours = value;
-              });
-            }),
-            const SizedBox(height: 20),
-            _buildTimeSelectorRow('하루에', '수면', _sleepHours, (value) {
-              setState(() {
-                _sleepHours = value;
-              });
-            }),
-            const SizedBox(height: 20),
-            _buildTimeSelectorRow('일주일에', '운동', _exerciseHours, (value) {
-              setState(() {
-                _exerciseHours = value;
-              });
-            }),
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _generateNovelFromSelection,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4A89F3),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 3,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Text(
-                        'What if ?!',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: OutlinedButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    CupertinoPageRoute(
-                      builder: (context) => const DiaryListPage(),
-                    ),
-                  );
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.black,
-                  side: const BorderSide(color: Color(0xFFDCDCDC)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  '이전 기록 보기',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: OutlinedButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    CupertinoPageRoute(
-                      builder: (context) => const BookmarkPage(),
-                    ),
-                  );
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.black,
-                  side: const BorderSide(color: Color(0xFFDCDCDC)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  '북마크',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 40),
-          ],
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
+              // 상단 스크린 타임 차트 카드
+              _buildScreenTimeChartCard(),
+              const SizedBox(height: 40),
+              // 앱별 목표 시간 목록
+              ...appUsageData.map((data) => _buildAppGoalItem(
+                    icon: data['icon'],
+                    goalHours: data['goal'],
+                    usageHours: data['usage'],
+                  )),
+              const SizedBox(height: 32),
+              // 기능 버튼 영역
+              _buildActionButtons(),
+              const SizedBox(height: 40),
+              // What If 시나리오 섹션
+              _buildWhatIfSection(),
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildTimeSelectorRow(String prefix, String keyword, int? currentValue,
-      ValueChanged<int?> onChanged) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        RichText(
-          text: TextSpan(
-            style: const TextStyle(fontSize: 18, color: Colors.black),
+  // 상단 스크린 타임 차트 위젯
+  Widget _buildScreenTimeChartCard() {
+    return Container(
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 2,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            totalScreenTime,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 20),
+          // TODO: 실제 차트 라이브러리(예: fl_chart)로 교체할 것을 권장합니다.
+          // 여기서는 디자인 시안을 흉내 낸 더미 차트입니다.
+          SizedBox(
+            height: 100,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _buildChartBar(0.8, Colors.teal),
+                _buildChartBar(0.6, Colors.teal),
+                const SizedBox(width: 10),
+                _buildChartBar(0.9, Colors.orange),
+                _buildChartBar(0.7, Colors.blue),
+                const SizedBox(width: 10),
+                _buildChartBar(0.5, Colors.indigo),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Divider(),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              TextSpan(text: '$prefix '),
-              TextSpan(
-                text: keyword,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+              _buildChartLabel('생산성 및 금융', '1시간 25분'),
+              _buildChartLabel('소셜 미디어', '51분'),
+              _buildChartLabel('엔터테인먼트', '48분'),
             ],
+          )
+        ],
+      ),
+    );
+  }
+
+  // 더미 차트의 막대 하나를 그리는 위젯
+  Widget _buildChartBar(double heightFactor, Color color) {
+    return Container(
+      width: 12,
+      height: 100 * heightFactor,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
+  }
+
+  // 차트 하단의 카테고리 라벨 위젯
+  Widget _buildChartLabel(String title, String time) {
+    return Column(
+      children: [
+        Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        const SizedBox(height: 4),
+        Text(time,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      ],
+    );
+  }
+
+  // 앱별 목표 사용량 아이템 위젯
+  Widget _buildAppGoalItem(
+      {required IconData icon,
+      required double goalHours,
+      required double usageHours}) {
+    final double progress = (usageHours / goalHours).clamp(0.0, 1.0);
+    final bool isOver = usageHours > goalHours;
+    final Color progressColor = isOver ? Colors.red : Colors.green.shade400;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 36, color: Colors.grey.shade700),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '목표 시간 : ${goalHours.toInt()} 시간',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 8),
+                LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: Colors.grey.shade200,
+                  valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                  minHeight: 10,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 중간에 위치한 기능 버튼들 위젯
+  Widget _buildActionButtons() {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const GoalSettingScreen()),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4A89F3),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+            ),
+            child: const Text('목표 설정',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white)),
           ),
         ),
-        Row(
-          children: [
-            Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFDCDCDC)),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
-                  value: currentValue,
-                  hint: const Text('선택', style: TextStyle(color: Colors.grey)),
-                  icon: const Icon(Icons.arrow_drop_down),
-                  items: List.generate(24, (index) => index + 1)
-                      .map((hour) => DropdownMenuItem(
-                            value: hour,
-                            child: Text('$hour'),
-                          ))
-                      .toList(),
-                  onChanged: onChanged,
-                ),
-              ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: OutlinedButton(
+            onPressed: () {
+              // TODO: 이전 달성률 보기 페이지로 이동하는 로직 구현
+              print('이전 달성률 보기 버튼 클릭');
+            },
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: Colors.grey.shade300),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
-            const SizedBox(width: 8),
-            const Text('시간', style: TextStyle(fontSize: 18)),
-          ],
+            child: Text('이전 달성률 보기',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade800)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // What If 시나리오 섹션 위젯
+  Widget _buildWhatIfSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '• What If 시나리오',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: OutlinedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                // CupertinoPageRoute는 iOS 스타일의 화면 전환 효과를 줍니다.
+                CupertinoPageRoute(builder: (context) => const DiaryListPage()),
+              );
+            },
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: Colors.grey.shade300),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('이전 기록 보기',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade800)),
+          ),
         ),
       ],
     );

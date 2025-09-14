@@ -59,7 +59,7 @@ class CommentProvider extends ChangeNotifier {
 
   /// 특정 일기/소설의 댓글 가져오기
   List<CommentModel> getCommentsForDiary(DiaryModel diary) {
-    final diaryId = _generateDiaryId(diary);
+    final diaryId = diary.id;
     final diaryComments =
         _comments.where((comment) => comment.diaryId == diaryId).toList();
     diaryComments.sort((a, b) => a.createdAt.compareTo(b.createdAt));
@@ -73,7 +73,7 @@ class CommentProvider extends ChangeNotifier {
     String? authorName,
   }) async {
     try {
-      final diaryId = _generateDiaryId(diary);
+      final diaryId = diary.id;
       final newComment = CommentModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         content: content.trim(),
@@ -123,7 +123,7 @@ class CommentProvider extends ChangeNotifier {
 
   /// 특정 일기의 댓글 수 가져오기
   int getCommentCountForDiary(DiaryModel diary) {
-    final diaryId = _generateDiaryId(diary);
+    final diaryId = diary.id;
     return _comments.where((comment) => comment.diaryId == diaryId).length;
   }
 
@@ -139,13 +139,6 @@ class CommentProvider extends ChangeNotifier {
   }
 
   /// 일기별 고유 ID 생성 (날짜 + 일기 내용 해시)
-  String _generateDiaryId(DiaryModel diary) {
-    // 💡 --- 여기가 핵심입니다 --- 💡
-    // diary.diary 대신 diary.userInput을 사용하여 고유 ID를 생성합니다.
-    final dateString = diary.date.toIso8601String().split('T')[0]; // YYYY-MM-DD
-    final contentHash = diary.userInput.hashCode.toString();
-    return '${dateString}_$contentHash';
-  }
 
   /// 최근 댓글 가져오기 (전체에서 최근 N개)
   List<CommentModel> getRecentComments(int count) {

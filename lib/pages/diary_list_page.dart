@@ -25,7 +25,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
   void _initializeData() {
     final diaryProvider = Provider.of<DiaryProvider>(context, listen: false);
-    _groupedHistory = _groupByWeek(diaryProvider.novelHistory);
+    _groupedHistory = _groupByWeek(diaryProvider.diaries);
     _weekKeys = _groupedHistory.keys.toList();
   }
 
@@ -58,7 +58,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
       ),
       body: Consumer<DiaryProvider>(
         builder: (context, diaryProvider, child) {
-          final novelHistory = diaryProvider.novelHistory;
+          final novelHistory = diaryProvider.diaries;
 
           if (novelHistory.isEmpty) {
             return const Center(
@@ -287,7 +287,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _formatDateTime(diary.date),
+              _formatDateTime(diary.createdAt),
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -317,7 +317,7 @@ class _DiaryListPageState extends State<DiaryListPage> {
     final Map<String, List<DiaryModel>> grouped = {};
 
     for (final diary in history) {
-      final weekKey = _getWeekKey(diary.date);
+      final weekKey = _getWeekKey(diary.createdAt);
       if (grouped[weekKey] == null) {
         grouped[weekKey] = [];
       }

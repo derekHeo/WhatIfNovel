@@ -1,57 +1,63 @@
+import 'package:flutter/foundation.dart';
+
+@immutable
 class DiaryModel {
-  // 💡 'diary' 필드 이름을 'userInput'으로 변경하여 역할을 명확히 함
+  final String id;
+  final String title;
+  final String content;
   final String userInput;
-  // 💡 AI에게 보낼 전체 프롬프트를 저장할 필드 추가
-  final String fullPrompt;
-  final String novel;
-  final DateTime date;
+  final DateTime createdAt;
   final bool isBookmarked;
 
-  DiaryModel({
+  const DiaryModel({
+    required this.id,
+    required this.title,
+    required this.content,
     required this.userInput,
-    required this.fullPrompt,
-    required this.novel,
-    required this.date,
+    required this.createdAt,
     this.isBookmarked = false,
   });
 
-  Map<String, dynamic> toMap() => {
-        // 💡 저장할 필드 업데이트
-        'userInput': userInput,
-        'fullPrompt': fullPrompt,
-        'novel': novel,
-        'date': date.toIso8601String(),
-        'isBookmarked': isBookmarked,
-      };
-
-  factory DiaryModel.fromMap(Map<String, dynamic> map) {
-    return DiaryModel(
-      // 💡 불러올 필드 업데이트.
-      // 하위 호환성을 위해 'userInput'이 없으면 기존 'diary' 필드에서 값을 가져옴
-      userInput: map['userInput'] as String? ?? map['diary'] as String,
-      // 'fullPrompt'가 없는 구버전 데이터를 대비해 null일 경우 userInput을 기본값으로 사용
-      fullPrompt: map['fullPrompt'] as String? ??
-          (map['userInput'] as String? ?? map['diary'] as String),
-      novel: map['novel'] as String,
-      date: DateTime.parse(map['date']),
-      isBookmarked: map['isBookmarked'] as bool? ?? false,
-    );
-  }
-
-  // copyWith 메서드도 새로운 필드에 맞게 업데이트
+  // 복사 및 수정을 위한 copyWith 메서드 (상태 관리 시 유용)
   DiaryModel copyWith({
+    String? id,
+    String? title,
+    String? content,
     String? userInput,
-    String? fullPrompt,
-    String? novel,
-    DateTime? date,
+    DateTime? createdAt,
     bool? isBookmarked,
   }) {
     return DiaryModel(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      content: content ?? this.content,
       userInput: userInput ?? this.userInput,
-      fullPrompt: fullPrompt ?? this.fullPrompt,
-      novel: novel ?? this.novel,
-      date: date ?? this.date,
+      createdAt: createdAt ?? this.createdAt,
       isBookmarked: isBookmarked ?? this.isBookmarked,
+    );
+  }
+
+  // Hive 저장을 위한 toMap 메서드
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'content': content,
+      'userInput': userInput,
+      'createdAt': createdAt.toIso8601String(),
+      'isBookmarked': isBookmarked,
+    };
+  }
+
+  // Hive 로드를 위한 fromMap 팩토리 생성자
+  factory DiaryModel.fromMap(Map<String, dynamic> map) {
+    return DiaryModel(
+      id: map['id'] ?? '',
+      title: map['title'] ?? '',
+      content: map['content'] ?? '',
+      userInput: map['userInput'] ?? '',
+      createdAt: DateTime.parse(map['createdAt']),
+      isBookmarked: map['isBookmarked'] ?? false,
     );
   }
 }

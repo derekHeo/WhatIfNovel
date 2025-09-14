@@ -31,7 +31,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
   void initState() {
     super.initState();
     _loadCurrentWeekNovels();
-    print(widget.diary.novel);
+    // 💡 수정: diary.novel -> diary.content
+    print(widget.diary.content);
   }
 
   @override
@@ -45,15 +46,19 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
 
   void _loadCurrentWeekNovels() {
     final diaryProvider = Provider.of<DiaryProvider>(context, listen: false);
-    final allNovels = diaryProvider.novelHistory;
+    // 💡 수정: diaryProvider.novelHistory -> diaryProvider.diaries
+    final allNovels = diaryProvider.diaries;
 
-    final currentWeekKey = _getWeekKey(widget.diary.date);
+    // 💡 수정: widget.diary.date -> widget.diary.createdAt
+    final currentWeekKey = _getWeekKey(widget.diary.createdAt);
     _currentWeekNovels = allNovels.where((novel) {
-      return _getWeekKey(novel.date) == currentWeekKey;
+      // 💡 수정: novel.date -> novel.createdAt
+      return _getWeekKey(novel.createdAt) == currentWeekKey;
     }).toList();
 
     _currentIndex = _currentWeekNovels.indexWhere((novel) =>
-        novel.date == widget.diary.date &&
+        // 💡 수정: novel.date -> novel.createdAt / widget.diary.date -> widget.diary.createdAt
+        novel.createdAt == widget.diary.createdAt &&
         novel.userInput == widget.diary.userInput);
 
     if (_currentIndex == -1) _currentIndex = 0;
@@ -83,7 +88,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
               onPressed: () => Navigator.of(context).pop(),
             ),
             title: Text(
-              _formatDateTime(widget.diary.date),
+              // 💡 수정: widget.diary.date -> widget.diary.createdAt
+              _formatDateTime(widget.diary.createdAt),
               style: const TextStyle(
                   color: Colors.black,
                   fontSize: 16,
@@ -126,7 +132,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                         ),
                         const SizedBox(height: 30),
                         Text(
-                          _extractFirstNovelTitle(widget.diary.novel),
+                          // 💡 수정: widget.diary.novel -> widget.diary.content
+                          _extractFirstNovelTitle(widget.diary.content),
                           style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -134,14 +141,17 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          _extractFirstNovelContent(widget.diary.novel),
+                          // 💡 수정: widget.diary.novel -> widget.diary.content
+                          _extractFirstNovelContent(widget.diary.content),
                           style: const TextStyle(
                               fontSize: 16, color: Colors.black, height: 1.6),
                         ),
                         const SizedBox(height: 30),
-                        if (_hasSecondNovel(widget.diary.novel)) ...[
+                        // 💡 수정: widget.diary.novel -> widget.diary.content
+                        if (_hasSecondNovel(widget.diary.content)) ...[
                           Text(
-                            _extractSecondNovelTitle(widget.diary.novel),
+                            // 💡 수정: widget.diary.novel -> widget.diary.content
+                            _extractSecondNovelTitle(widget.diary.content),
                             style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -149,7 +159,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            _extractSecondNovelContent(widget.diary.novel),
+                            // 💡 수정: widget.diary.novel -> widget.diary.content
+                            _extractSecondNovelContent(widget.diary.content),
                             style: const TextStyle(
                                 fontSize: 16, color: Colors.black, height: 1.6),
                           ),
@@ -238,13 +249,10 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                     Row(
                       children: [
                         IconButton(
-                          onPressed:
-                              _currentIndex < _currentWeekNovels.length - 1
-                                  ? _goToPrevious
-                                  : null,
+                          onPressed: _currentIndex > 0 ? _goToPrevious : null,
                           icon: Icon(
                             Icons.chevron_left,
-                            color: _currentIndex < _currentWeekNovels.length - 1
+                            color: _currentIndex > 0
                                 ? Colors.black54
                                 : Colors.grey.shade300,
                             size: 28,
@@ -256,10 +264,13 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                               color: Colors.black54, size: 24),
                         ),
                         IconButton(
-                          onPressed: _currentIndex > 0 ? _goToNext : null,
+                          onPressed:
+                              _currentIndex < _currentWeekNovels.length - 1
+                                  ? _goToNext
+                                  : null,
                           icon: Icon(
                             Icons.chevron_right,
-                            color: _currentIndex > 0
+                            color: _currentIndex < _currentWeekNovels.length - 1
                                 ? Colors.black54
                                 : Colors.grey.shade300,
                             size: 28,
@@ -277,11 +288,9 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     );
   }
 
-  // 💡 --- 여기서부터 생략되었던 모든 함수들을 다시 포함시켰습니다 --- 💡
-
   Widget _buildCommentSection() {
     return Container(
-      height: 300, // 고정 높이
+      height: 300,
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -522,8 +531,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
   }
 
   void _goToPrevious() {
-    if (_currentIndex < _currentWeekNovels.length - 1) {
-      final previousNovel = _currentWeekNovels[_currentIndex + 1];
+    if (_currentIndex > 0) {
+      final previousNovel = _currentWeekNovels[_currentIndex - 1];
       Navigator.of(context).pushReplacement(
         CupertinoPageRoute(
             builder: (context) => NovelDetailPage(diary: previousNovel)),
@@ -532,8 +541,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
   }
 
   void _goToNext() {
-    if (_currentIndex > 0) {
-      final nextNovel = _currentWeekNovels[_currentIndex - 1];
+    if (_currentIndex < _currentWeekNovels.length - 1) {
+      final nextNovel = _currentWeekNovels[_currentIndex + 1];
       Navigator.of(context).pushReplacement(
         CupertinoPageRoute(
             builder: (context) => NovelDetailPage(diary: nextNovel)),
@@ -563,7 +572,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                 children: [
                   const SizedBox(width: 60),
                   Text(
-                    '${_getWeekKey(widget.diary.date)}의 기록',
+                    // 💡 수정: widget.diary.date -> widget.diary.createdAt
+                    '${_getWeekKey(widget.diary.createdAt)}의 기록',
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.w600),
                   ),
@@ -622,7 +632,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                                 ),
                               Expanded(
                                 child: Text(
-                                  _formatDateTime(novel.date),
+                                  // 💡 수정: novel.date -> novel.createdAt
+                                  _formatDateTime(novel.createdAt),
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: isCurrentNovel
@@ -672,8 +683,9 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     return diary;
   }
 
-  String _extractFirstNovelTitle(String novel) {
-    final lines = novel.split('\n');
+  // 💡 아래 함수들의 파라미터 변수명을 novel에서 content로 변경하여 명확성을 높였습니다.
+  String _extractFirstNovelTitle(String content) {
+    final lines = content.split('\n');
     for (final line in lines) {
       final trimmedLine = line.trim();
       if (trimmedLine.startsWith('**What you did**')) {
@@ -687,10 +699,10 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     return '<What you did>';
   }
 
-  String _extractFirstNovelContent(String novel) {
-    final lines = novel.split('\n');
+  String _extractFirstNovelContent(String content) {
+    final lines = content.split('\n');
     bool foundFirst = false;
-    final List<String> content = [];
+    final List<String> contentList = [];
     for (final line in lines) {
       final trimmedLine = line.trim();
       if (trimmedLine.startsWith('**What you did**') ||
@@ -703,28 +715,28 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
         break;
       }
       if (foundFirst) {
-        content.add(line);
+        contentList.add(line);
       }
     }
-    if (content.isNotEmpty) {
-      while (content.isNotEmpty && content.first.trim().isEmpty)
-        content.removeAt(0);
-      while (content.isNotEmpty && content.last.trim().isEmpty)
-        content.removeLast();
-      return content.join('\n');
+    if (contentList.isNotEmpty) {
+      while (contentList.isNotEmpty && contentList.first.trim().isEmpty)
+        contentList.removeAt(0);
+      while (contentList.isNotEmpty && contentList.last.trim().isEmpty)
+        contentList.removeLast();
+      return contentList.join('\n');
     } else {
-      final allText = novel.replaceAll('**', '').replaceAll('###', '');
+      final allText = content.replaceAll('**', '').replaceAll('###', '');
       final halfPoint = allText.length ~/ 2;
       return allText.substring(0, halfPoint).trim();
     }
   }
 
-  bool _hasSecondNovel(String novel) {
-    return novel.contains('**What If') || novel.contains('### What If');
+  bool _hasSecondNovel(String content) {
+    return content.contains('**What If') || content.contains('### What If');
   }
 
-  String _extractSecondNovelTitle(String novel) {
-    final lines = novel.split('\n');
+  String _extractSecondNovelTitle(String content) {
+    final lines = content.split('\n');
     for (final line in lines) {
       final trimmedLine = line.trim();
       if (trimmedLine.startsWith('**What If')) {
@@ -738,10 +750,10 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     return '<What If you didn\'t>';
   }
 
-  String _extractSecondNovelContent(String novel) {
-    final lines = novel.split('\n');
+  String _extractSecondNovelContent(String content) {
+    final lines = content.split('\n');
     bool foundSecond = false;
-    final List<String> content = [];
+    final List<String> contentList = [];
     for (final line in lines) {
       final trimmedLine = line.trim();
       if (trimmedLine.startsWith('**What If') ||
@@ -750,17 +762,17 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
         continue;
       }
       if (foundSecond) {
-        content.add(line);
+        contentList.add(line);
       }
     }
-    if (content.isNotEmpty) {
-      while (content.isNotEmpty && content.first.trim().isEmpty)
-        content.removeAt(0);
-      while (content.isNotEmpty && content.last.trim().isEmpty)
-        content.removeLast();
-      return content.join('\n');
+    if (contentList.isNotEmpty) {
+      while (contentList.isNotEmpty && contentList.first.trim().isEmpty)
+        contentList.removeAt(0);
+      while (contentList.isNotEmpty && contentList.last.trim().isEmpty)
+        contentList.removeLast();
+      return contentList.join('\n');
     } else {
-      final allText = novel.replaceAll('**', '').replaceAll('###', '');
+      final allText = content.replaceAll('**', '').replaceAll('###', '');
       final halfPoint = allText.length ~/ 2;
       return allText.substring(halfPoint).trim();
     }

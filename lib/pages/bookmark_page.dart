@@ -25,9 +25,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
 
   void _initializeData() {
     final diaryProvider = Provider.of<DiaryProvider>(context, listen: false);
-    final bookmarkedNovels = diaryProvider.novelHistory
-        .where((diary) => diary.isBookmarked)
-        .toList();
+    final bookmarkedNovels = diaryProvider.bookmarkedNovels;
     _groupedBookmarks = _groupByWeek(bookmarkedNovels);
     _weekKeys = _groupedBookmarks.keys.toList();
   }
@@ -61,9 +59,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
       ),
       body: Consumer<DiaryProvider>(
         builder: (context, diaryProvider, child) {
-          final bookmarkedNovels = diaryProvider.novelHistory
-              .where((diary) => diary.isBookmarked)
-              .toList();
+          final bookmarkedNovels = diaryProvider.bookmarkedNovels;
 
           if (bookmarkedNovels.isEmpty) {
             return const Center(
@@ -335,7 +331,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _formatDateTime(diary.date),
+                    _formatDateTime(diary.createdAt),
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -367,7 +363,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
     final Map<String, List<DiaryModel>> grouped = {};
 
     for (final diary in history) {
-      final weekKey = _getWeekKey(diary.date);
+      final weekKey = _getWeekKey(diary.createdAt);
       if (grouped[weekKey] == null) {
         grouped[weekKey] = [];
       }
