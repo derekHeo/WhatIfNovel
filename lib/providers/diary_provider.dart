@@ -1,40 +1,45 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:provider/provider.dart';
 
 import '../models/diary_model.dart';
-import '../models/user_profile.dart'; // 💡 1. UserProfile 모델 import 추가
+import '../models/user_profile.dart';
 import '../services/gpt_service.dart';
+import '../services/firestore_service.dart';
 import 'user_profile_provider.dart';
 
 class DiaryProvider with ChangeNotifier {
-  // 💡 2. 데이터 소스를 _diaries 하나로 통일합니다.
+  final FirestoreService _firestoreService = FirestoreService();
+
   List<DiaryModel> _diaries = [];
   DiaryModel? _lastNovel;
   bool _isLoading = false;
 
   List<DiaryModel> get diaries => [..._diaries];
   DiaryModel? get lastNovel => _lastNovel;
-  bool get isLoading => isLoading;
+  bool get isLoading => _isLoading;
 
   DiaryProvider() {
     _loadHistory();
   }
 
+  /// Firestore에서 일기 목록 로드
   Future<void> _loadHistory() async {
-    var box = await Hive.openBox('novel_history');
-    final List history = box.get('history', defaultValue: []);
-    // 💡 3. _novelHistory 대신 _diaries에 로드합니다.
-    _diaries = history
-        .map((item) => DiaryModel.fromMap(Map<String, dynamic>.from(item)))
-        .toList();
-    notifyListeners();
+    try {
+      _diaries = await _firestoreService.getDiaries();
+      notifyListeners();
+    } catch (e) {
+      print('일기 로드 실패: $e');
+    }
   }
 
-  Future<void> _saveHistory() async {
-    var box = await Hive.openBox('novel_history');
-    // 💡 4. _diaries의 내용을 저장합니다.
-    await box.put('history', _diaries.map((d) => d.toMap()).toList());
+  /// Firestore에 일기 저장
+  Future<void> _saveDiary(DiaryModel diary) async {
+    try {
+      await _firestoreService.createDiary(diary);
+    } catch (e) {
+      print('일기 저장 실패: $e');
+      rethrow;
+    }
   }
 
   Future<void> generateGoalBasedNovel({
@@ -59,6 +64,10 @@ class DiaryProvider with ChangeNotifier {
         profileDetails: profileDetails,
         appUsageSummary: appUsageSummary,
         todoSummary: todoSummary,
+        userProfile: userProfile,
+        appGoals: appGoals,
+        appUsage: appUsage,
+        todoList: todoList,
       );
 
       final generatedText = await GptService.generateNovel(finalPrompt);
@@ -74,8 +83,12 @@ class DiaryProvider with ChangeNotifier {
         userInput: "목표 기반 시나리오",
         createdAt: DateTime.now(),
       );
-      _diaries.add(_lastNovel!);
-      await _saveHistory(); // 💡 5. 새 소설 생성 후 저장 로직 호출
+
+      // Firestore에 저장
+      await _saveDiary(_lastNovel!);
+
+      // 로컬 리스트에도 추가
+      _diaries.insert(0, _lastNovel!); // 최신순으로 맨 앞에 추가
     } catch (e) {
       print(e);
       rethrow;
@@ -135,70 +148,187 @@ class DiaryProvider with ChangeNotifier {
 """;
   }
 
-  // 💡 6. 비어있던 함수 내용을 채웁니다.
+  // 새로운 데이터 처리 함수들 추가
+  String _createAppAchievementDetail(
+      Map<String, int?> appGoals, Map<String, double> appUsage) {
+    String detail = "";
+    appGoals.forEach((appName, goalHours) {
+      if (goalHours != null) {
+        final usageHours = appUsage[appName] ?? 0.0;
+        final isOver = usageHours > goalHours;
+        final diff = (usageHours - goalHours).abs();
+
+        if (isOver) {
+          detail += "$appName: 목표보다 ${diff.toStringAsFixed(1)}시간 초과. ";
+        } else {
+          detail += "$appName: 목표보다 ${diff.toStringAsFixed(1)}시간 적게 사용. ";
+        }
+      }
+    });
+    return detail.trim();
+  }
+
+  double _calculateDailyAchievementRate(List<Map<String, dynamic>> todoList) {
+    if (todoList.isEmpty) return 0.0;
+    final completed =
+        todoList.where((item) => item['isChecked'] == true).length;
+    return (completed / todoList.length * 100);
+  }
+
+  String _extractTodayTasks(List<Map<String, dynamic>> todoList) {
+    final completed = todoList
+        .where((item) => item['isChecked'] == true)
+        .map((item) => item['text'])
+        .join(', ');
+    final incomplete = todoList
+        .where((item) => item['isChecked'] == false)
+        .map((item) => item['text'])
+        .join(', ');
+
+    String result = "";
+    if (completed.isNotEmpty) result += "완료: $completed. ";
+    if (incomplete.isNotEmpty) result += "미완료: $incomplete.";
+    return result.trim();
+  }
+
+  String _extractKeywords(UserProfile userProfile) {
+    if (userProfile.styleAnswers != null &&
+        userProfile.styleAnswers!.isNotEmpty) {
+      return userProfile.styleAnswers!.values.expand((list) => list).join(', ');
+    } else {
+      return userProfile.keywords.join(', ');
+    }
+  }
+
+  // 새로운 프롬프트 생성 함수
   String _buildFinalPrompt({
     required String profileDetails,
     required String appUsageSummary,
     required String todoSummary,
+    required UserProfile userProfile,
+    required Map<String, int?> appGoals,
+    required Map<String, double> appUsage,
+    required List<Map<String, dynamic>> todoList,
   }) {
+    final longTermGoal = userProfile.longTermGoal ?? "정보 없음";
+    final shortTermGoal = userProfile.shortTermGoal ?? "정보 없음";
+    final additionalInfo = userProfile.additionalInfo ?? "정보 없음";
+    final keywords = _extractKeywords(userProfile);
+    final appAchievementDetail =
+        _createAppAchievementDetail(appGoals, appUsage);
+    final dailyAchievementRate = _calculateDailyAchievementRate(todoList);
+    final todayTasks = _extractTodayTasks(todoList);
+    final selectedStyleAnswers = userProfile.styleAnswers ?? "정보 없음";
+
     return '''
-너는 사용자의 하루를 데이터 기반으로 분석하고 성찰적인 단편 소설을 써주는 '라이프 스토리텔러'야. 제공된 데이터를 바탕으로, 사용자가 보냈을 법한 하루를 현실적으로, 그리고 감성적으로 재구성해줘.
+당신은 평행우주의 두 가지 하루를 기록하는 반사실적 스토리텔러다. 조건 * 작은 선택 하나가 성공과 실패를 가르는 극적인 차이를 보여줄 것., * 성공 서사에서는 구체적인 성취를 계속 이루었을 때의 압도적으로 긍정적인 미래를 보여줄 것., * 실패 서사에서는 단순한 아쉬움이 아니라, 삶 전체가 붕괴되고 비극적으로 마무리된 결과를 반드시 생생히 묘사할 것., * 실패는 하루가 망친 정도가 아니라, 반복과 누적 끝에 학업, 건강, 인간관계, 미래 계획이 모두 파국을 맞고 결국 삶이 비극적으로 끝나버린 상태로 표현할 것., * 반드시 “~되었다 / ~였다” 완료형으로 작성해, 미래 예측이 아닌 이미 벌어진 현실처럼 들리도록 할 것., * 두 이야기는 각각 소제목을 달아 “성공한 하루”와 “실패한 하루”로 뚜렷이 구분할 것., * 직접적인 교훈 문장은 쓰지 않고, 이야기 전개만으로 독자가 스스로 압박감과 경각심을 느끼게 할 것., 입력 데이터##### --- 작성 프로세스 1단계: 스토리 설계 추론 <think> 다음 사항들을 차례대로 분석하고 추론하라: 1. 목표와 할 일의 연관성 분석 * today_tasks 각각이 short_term_goal 달성에 어떻게 기여하는가?, * short_term_goal이 long_term_goal 실현에 어떤 역할을 하는가?, * current_activities가 전체 목표 체계와 어떻게 연결되는가?, ,
+1. 성공 요인과 실제적 결과 분석
+   * coping_style이 성공에 어떤 자연스러운 영향을 미쳤는가?,
+   * 오늘의 성공이 실질적으로 어떤 변화를 가져올 것인가?,
+   * 이 성공이 다음 단계 목표 달성에 미치는 실용적 영향은?,
+   * app_achievement_detail과 daily_achievement_rate가 보여주는 성과는?, ,
 
-[사용자 프로필]
-$profileDetails
+실패 가능성과 그 결과 분석
+어떤 선택이 실패로 이어질 수 있었는가?,
+오늘의 실패가 목표 달성에 미칠 실질적 악영향은?,
+놓친 기회의 실제적 손실은 무엇인가?,
+coping_style이 실패에 어떤 미묘한 영향을 미칠 수 있었는가?, ,
 
-[앱 사용 목표 및 결과]
-$appUsageSummary
+전환점과 선택의 실용성
+어떤 구체적 순간에서 성공과 실패가 갈라졌는가?,
+그 순간의 선택이 실제로 결과를 바꾸는 이유는?,
+작은 행동이 큰 차이를 만드는 메커니즘은?, ,
 
-[To-do 리스트 결과]
-$todoSummary
-
-==== 작성 지침 ====
-1.  **데이터 분석**: 목표와 실제 사용 시간의 '차이'에 주목해. 목표를 초과했다면 왜 그랬을지(예: 스트레스, 휴식), 목표보다 적게 썼다면 어떤 노력을 했는지 상상해봐.
-2.  **To-do 리스트와 연결**: To-do 달성률이 높다면 성실하고 뿌듯한 하루, 낮다면 무기력하거나 예상치 못한 일이 생긴 하루로 묘사해봐. 완료된 To-do 항목을 이야기 속에 자연스럽게 언급해줘.
-3.  **현실 기반의 서사**: 사용자의 프로필(직업, 목표 등)과 그날의 데이터를 긴밀하게 연결해. 예를 들어, '개발자'가 목표보다 유튜브를 많이 봤다면, '코드가 막혀 머리를 식히기 위해'라는 식으로 개연성을 부여해.
-4.  **내면 묘사**: 단순히 사실을 나열하지 마. 그날의 성과에 대한 감정(성취감, 아쉬움, 만족감, 불안감 등)을 1인칭 시점으로 섬세하게 묘사해줘.
-5.  **출력 형식**: 첫 줄에는 '시나리오: {소설 제목}'을 쓰고, 다음 줄부터 본문을 1200자 내외로 작성해. 메타 설명은 절대 넣지 마.
+스토리 구성과 재미 요소
+사용자의 개인적 특성(나이, 직업, 성격)을 어떻게 자연스럽게 반영할 것인가?,
+coping_style을 직접 언급하지 않고 행동과 사고 패턴으로 어떻게 보여줄 것인가?,
+흥미로운 상황이나 반전 요소를 어떻게 넣을 것인가?,
+독자가 몰입할 수 있는 구체적 장면은 무엇인가?,
+적절한 유머나 위트를 어떻게 포함시킬 것인가?,
+특히 실패 서사에서는 삶이 최종적으로 비극적 종말을 맞이한 상태를 이미 되어버린 현실처럼 생생히 묘사하여, 독자가 강렬한 좌절감과 경각심을 느낄 수 있도록 할 것., , </think> --- 2단계: 소설 작성 작성 지침
+총 분량: 1000~1400자,
+성공 서사: 500~700자, 구체적인 성취를 계속 이루었을 때의 압도적으로 긍정적인 미래 묘사,
+실패 서사: 500~700자, 작은 미루기가 반복되어 결국 삶이 완전히 붕괴되고 비극적으로 마무리된 상태를 이미 경험한 듯 묘사,
+시점: 1인칭,
+문체: 현실적이고 생생한 웹소설 톤,
+반드시 완료형(“~되었다 / ~였다”)으로 서술할 것.,
+반드시 소제목을 넣어 “성공한 하루” vs “실패한 하루”가 명확히 구분되도록 작성할 것.,
+마지막에 교훈이나 결론을 직접 쓰지 않는다. 이야기 자체가 독자에게 숨 막히는 절망과 경각심을 남겨야 한다.
+사용자 입력 데이터
+- long_term_goal: {$longTermGoal}
+- short_term_goal: {$shortTermGoal}
+- current_activities: {$todayTasks}
+- coping_style: {$selectedStyleAnswers}
+- app_achievement_detail: {$appAchievementDetail}
+- daily_achievement_rate: {$dailyAchievementRate}%
+- today_tasks: {$todayTasks}
 ''';
   }
 
-  // 💡 아래 모든 함수들이 _novelHistory 대신 _diaries를 사용하도록 수정합니다.
+  /// 특정 인덱스의 일기 삭제
   Future<void> removeNovelAt(int idx) async {
-    _diaries.removeAt(idx);
-    await _saveHistory();
-    notifyListeners();
+    if (idx >= 0 && idx < _diaries.length) {
+      final diaryId = _diaries[idx].id;
+      try {
+        await _firestoreService.deleteDiary(diaryId);
+        _diaries.removeAt(idx);
+        notifyListeners();
+      } catch (e) {
+        print('일기 삭제 실패: $e');
+        rethrow;
+      }
+    }
   }
 
+  /// 모든 일기 삭제
   Future<void> clearHistory() async {
-    _diaries.clear();
-    await _saveHistory();
-    notifyListeners();
-  }
-
-  List<DiaryModel> get bookmarkedNovels =>
-      _diaries.where((diary) => diary.isBookmarked).toList();
-
-  Future<void> toggleBookmark(int index) async {
-    if (index >= 0 && index < _diaries.length) {
-      final updatedDiary = _diaries[index].copyWith(
-        isBookmarked: !_diaries[index].isBookmarked,
-      );
-      _diaries[index] = updatedDiary;
-      await _saveHistory();
+    try {
+      // 모든 일기를 Firestore에서 삭제
+      for (var diary in _diaries) {
+        await _firestoreService.deleteDiary(diary.id);
+      }
+      _diaries.clear();
       notifyListeners();
+    } catch (e) {
+      print('전체 삭제 실패: $e');
+      rethrow;
     }
   }
 
-  Future<void> toggleBookmarkForDiary(DiaryModel targetDiary) async {
-    final index = _diaries.indexWhere((diary) => diary.id == targetDiary.id);
-
-    if (index != -1) {
-      await toggleBookmark(index);
-    }
+  /// Firestore에서 실시간으로 일기 목록 스트림 구독
+  Stream<List<DiaryModel>> get diariesStream {
+    return _firestoreService.getDiariesStream();
   }
 
-  bool isBookmarked(DiaryModel diary) {
-    final index = _diaries.indexWhere((d) => d.id == diary.id);
-    return index != -1 ? _diaries[index].isBookmarked : false;
+  /// 일기 새로고침
+  Future<void> refreshDiaries() async {
+    await _loadHistory();
   }
+
+//   List<DiaryModel> get bookmarkedNovels =>
+//       _diaries.where((diary) => diary.isBookmarked).toList();
+
+//   Future<void> toggleBookmark(int index) async {
+//     if (index >= 0 && index < _diaries.length) {
+//       final updatedDiary = _diaries[index].copyWith(
+//         isBookmarked: !_diaries[index].isBookmarked,
+//       );
+//       _diaries[index] = updatedDiary;
+//       await _saveHistory();
+//       notifyListeners();
+//     }
+//   }
+
+//   Future<void> toggleBookmarkForDiary(DiaryModel targetDiary) async {
+//     final index = _diaries.indexWhere((diary) => diary.id == targetDiary.id);
+
+//     if (index != -1) {
+//       await toggleBookmark(index);
+//     }
+//   }
+
+//   bool isBookmarked(DiaryModel diary) {
+//     final index = _diaries.indexWhere((d) => d.id == diary.id);
+//     return index != -1 ? _diaries[index].isBookmarked : false;
+//   }
 }

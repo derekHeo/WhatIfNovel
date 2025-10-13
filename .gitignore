@@ -45,3 +45,23 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase configuration files (contains API keys)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
+firebase.json
+
+# Android local properties
+android/local.properties
+
+# iOS CocoaPods
+ios/Pods/
+ios/.symlinks/
+ios/Podfile.lock
+
+# macOS system files
+**/.DS_Store
+
+# Claude Code settings
+.claude/

@@ -7,7 +7,7 @@ class DiaryModel {
   final String content;
   final String userInput;
   final DateTime createdAt;
-  final bool isBookmarked;
+  // final bool isBookmarked;
 
   const DiaryModel({
     required this.id,
@@ -15,7 +15,7 @@ class DiaryModel {
     required this.content,
     required this.userInput,
     required this.createdAt,
-    this.isBookmarked = false,
+    // this.isBookmarked = false,
   });
 
   // 복사 및 수정을 위한 copyWith 메서드 (상태 관리 시 유용)
@@ -33,7 +33,7 @@ class DiaryModel {
       content: content ?? this.content,
       userInput: userInput ?? this.userInput,
       createdAt: createdAt ?? this.createdAt,
-      isBookmarked: isBookmarked ?? this.isBookmarked,
+      // isBookmarked: isBookmarked ?? this.isBookmarked,
     );
   }
 
@@ -45,7 +45,7 @@ class DiaryModel {
       'content': content,
       'userInput': userInput,
       'createdAt': createdAt.toIso8601String(),
-      'isBookmarked': isBookmarked,
+      // 'isBookmarked': isBookmarked,
     };
   }
 
@@ -57,7 +57,7 @@ class DiaryModel {
       content: map['content'] ?? '',
       userInput: map['userInput'] ?? '',
       createdAt: DateTime.parse(map['createdAt']),
-      isBookmarked: map['isBookmarked'] ?? false,
+      // isBookmarked: map['isBookmarked'] ?? false,
     );
   }
 }

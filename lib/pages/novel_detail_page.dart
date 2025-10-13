@@ -5,6 +5,7 @@ import '../models/diary_model.dart';
 import '../models/comment_model.dart';
 import '../providers/diary_provider.dart';
 import '../providers/comment_provider.dart';
+import 'goal_setting_screen.dart';
 
 class NovelDetailPage extends StatefulWidget {
   final DiaryModel diary;
@@ -31,7 +32,6 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
   void initState() {
     super.initState();
     _loadCurrentWeekNovels();
-    // 💡 수정: diary.novel -> diary.content
     print(widget.diary.content);
   }
 
@@ -46,18 +46,14 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
 
   void _loadCurrentWeekNovels() {
     final diaryProvider = Provider.of<DiaryProvider>(context, listen: false);
-    // 💡 수정: diaryProvider.novelHistory -> diaryProvider.diaries
     final allNovels = diaryProvider.diaries;
 
-    // 💡 수정: widget.diary.date -> widget.diary.createdAt
     final currentWeekKey = _getWeekKey(widget.diary.createdAt);
     _currentWeekNovels = allNovels.where((novel) {
-      // 💡 수정: novel.date -> novel.createdAt
       return _getWeekKey(novel.createdAt) == currentWeekKey;
     }).toList();
 
     _currentIndex = _currentWeekNovels.indexWhere((novel) =>
-        // 💡 수정: novel.date -> novel.createdAt / widget.diary.date -> widget.diary.createdAt
         novel.createdAt == widget.diary.createdAt &&
         novel.userInput == widget.diary.userInput);
 
@@ -74,7 +70,6 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
   Widget build(BuildContext context) {
     return Consumer2<DiaryProvider, CommentProvider>(
       builder: (context, diaryProvider, commentProvider, child) {
-        final isBookmarked = diaryProvider.isBookmarked(widget.diary);
         _comments = commentProvider.getCommentsForDiary(widget.diary);
 
         return Scaffold(
@@ -88,7 +83,6 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
               onPressed: () => Navigator.of(context).pop(),
             ),
             title: Text(
-              // 💡 수정: widget.diary.date -> widget.diary.createdAt
               _formatDateTime(widget.diary.createdAt),
               style: const TextStyle(
                   color: Colors.black,
@@ -96,14 +90,6 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                   fontWeight: FontWeight.w600),
             ),
             centerTitle: true,
-            actions: [
-              if (isBookmarked)
-                Container(
-                  margin: const EdgeInsets.only(right: 16),
-                  child: const Icon(Icons.bookmark,
-                      color: Color(0xFF007AFF), size: 24),
-                ),
-            ],
           ),
           body: Column(
             children: [
@@ -131,40 +117,15 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                               fontSize: 16, color: Colors.black, height: 1.6),
                         ),
                         const SizedBox(height: 30),
+                        const Divider(thickness: 1, color: Colors.black12),
+                        const SizedBox(height: 30),
                         Text(
-                          // 💡 수정: widget.diary.novel -> widget.diary.content
-                          _extractFirstNovelTitle(widget.diary.content),
-                          style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFF5E6A3)),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          // 💡 수정: widget.diary.novel -> widget.diary.content
-                          _extractFirstNovelContent(widget.diary.content),
+                          widget.diary.content,
                           style: const TextStyle(
                               fontSize: 16, color: Colors.black, height: 1.6),
                         ),
-                        const SizedBox(height: 30),
-                        // 💡 수정: widget.diary.novel -> widget.diary.content
-                        if (_hasSecondNovel(widget.diary.content)) ...[
-                          Text(
-                            // 💡 수정: widget.diary.novel -> widget.diary.content
-                            _extractSecondNovelTitle(widget.diary.content),
-                            style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF007AFF)),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            // 💡 수정: widget.diary.novel -> widget.diary.content
-                            _extractSecondNovelContent(widget.diary.content),
-                            style: const TextStyle(
-                                fontSize: 16, color: Colors.black, height: 1.6),
-                          ),
-                        ],
+                        const SizedBox(height: 50),
+                        _buildNextButton(context),
                         const SizedBox(height: 50),
                       ],
                     ),
@@ -186,23 +147,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                     Row(
                       children: [
                         GestureDetector(
-                          onTap: () => _toggleBookmark(context, diaryProvider),
                           child: Container(
                             padding: const EdgeInsets.all(8),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  isBookmarked
-                                      ? Icons.bookmark
-                                      : Icons.bookmark_border,
-                                  color: isBookmarked
-                                      ? const Color(0xFF007AFF)
-                                      : Colors.black54,
-                                  size: 24,
-                                ),
-                              ],
-                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -285,6 +231,36 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildNextButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        onPressed: () {
+          Navigator.pushReplacement(
+            context,
+            CupertinoPageRoute(builder: (context) => const GoalSettingScreen()),
+          );
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blue,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 0,
+        ),
+        child: const Text(
+          'NEXT',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ),
     );
   }
 
@@ -515,21 +491,6 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
     return '방금 전';
   }
 
-  void _toggleBookmark(
-      BuildContext context, DiaryProvider diaryProvider) async {
-    await diaryProvider.toggleBookmarkForDiary(widget.diary);
-
-    final isNowBookmarked = diaryProvider.isBookmarked(widget.diary);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(isNowBookmarked ? '북마크에 추가되었습니다' : '북마크에서 제거되었습니다'),
-          duration: const Duration(seconds: 1),
-        ),
-      );
-    }
-  }
-
   void _goToPrevious() {
     if (_currentIndex > 0) {
       final previousNovel = _currentWeekNovels[_currentIndex - 1];
@@ -572,7 +533,6 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                 children: [
                   const SizedBox(width: 60),
                   Text(
-                    // 💡 수정: widget.diary.date -> widget.diary.createdAt
                     '${_getWeekKey(widget.diary.createdAt)}의 기록',
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.w600),
@@ -632,7 +592,6 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                                 ),
                               Expanded(
                                 child: Text(
-                                  // 💡 수정: novel.date -> novel.createdAt
                                   _formatDateTime(novel.createdAt),
                                   style: TextStyle(
                                     fontSize: 16,
@@ -681,100 +640,5 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
       return '${diary.substring(0, 47)}...';
     }
     return diary;
-  }
-
-  // 💡 아래 함수들의 파라미터 변수명을 novel에서 content로 변경하여 명확성을 높였습니다.
-  String _extractFirstNovelTitle(String content) {
-    final lines = content.split('\n');
-    for (final line in lines) {
-      final trimmedLine = line.trim();
-      if (trimmedLine.startsWith('**What you did**')) {
-        String title = trimmedLine.replaceAll('**', '');
-        return '<$title>';
-      } else if (trimmedLine.startsWith('### What you did')) {
-        String title = trimmedLine.substring(4);
-        return '<$title>';
-      }
-    }
-    return '<What you did>';
-  }
-
-  String _extractFirstNovelContent(String content) {
-    final lines = content.split('\n');
-    bool foundFirst = false;
-    final List<String> contentList = [];
-    for (final line in lines) {
-      final trimmedLine = line.trim();
-      if (trimmedLine.startsWith('**What you did**') ||
-          trimmedLine.startsWith('### What you did')) {
-        foundFirst = true;
-        continue;
-      }
-      if (trimmedLine.startsWith('**What If') ||
-          trimmedLine.startsWith('### What If')) {
-        break;
-      }
-      if (foundFirst) {
-        contentList.add(line);
-      }
-    }
-    if (contentList.isNotEmpty) {
-      while (contentList.isNotEmpty && contentList.first.trim().isEmpty)
-        contentList.removeAt(0);
-      while (contentList.isNotEmpty && contentList.last.trim().isEmpty)
-        contentList.removeLast();
-      return contentList.join('\n');
-    } else {
-      final allText = content.replaceAll('**', '').replaceAll('###', '');
-      final halfPoint = allText.length ~/ 2;
-      return allText.substring(0, halfPoint).trim();
-    }
-  }
-
-  bool _hasSecondNovel(String content) {
-    return content.contains('**What If') || content.contains('### What If');
-  }
-
-  String _extractSecondNovelTitle(String content) {
-    final lines = content.split('\n');
-    for (final line in lines) {
-      final trimmedLine = line.trim();
-      if (trimmedLine.startsWith('**What If')) {
-        String title = trimmedLine.replaceAll('**', '');
-        return '<$title>';
-      } else if (trimmedLine.startsWith('### What If')) {
-        String title = trimmedLine.substring(4);
-        return '<$title>';
-      }
-    }
-    return '<What If you didn\'t>';
-  }
-
-  String _extractSecondNovelContent(String content) {
-    final lines = content.split('\n');
-    bool foundSecond = false;
-    final List<String> contentList = [];
-    for (final line in lines) {
-      final trimmedLine = line.trim();
-      if (trimmedLine.startsWith('**What If') ||
-          trimmedLine.startsWith('### What If')) {
-        foundSecond = true;
-        continue;
-      }
-      if (foundSecond) {
-        contentList.add(line);
-      }
-    }
-    if (contentList.isNotEmpty) {
-      while (contentList.isNotEmpty && contentList.first.trim().isEmpty)
-        contentList.removeAt(0);
-      while (contentList.isNotEmpty && contentList.last.trim().isEmpty)
-        contentList.removeLast();
-      return contentList.join('\n');
-    } else {
-      final allText = content.replaceAll('**', '').replaceAll('###', '');
-      final halfPoint = allText.length ~/ 2;
-      return allText.substring(halfPoint).trim();
-    }
   }
 }

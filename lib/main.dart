@@ -3,15 +3,23 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'pages/start_screen.dart';
 import 'providers/diary_provider.dart';
 import 'providers/user_profile_provider.dart';
 import 'providers/screen_time_provider.dart';
 import 'providers/comment_provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'providers/app_goal_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Firebase 초기화
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   // Hive 초기화
   await Hive.initFlutter();
@@ -28,6 +36,9 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (context) => DiaryProvider()),
+        ChangeNotifierProvider(
+            create: (_) => AppGoalProvider()), // ✨ 이 줄을 추가하세요.
+
         ChangeNotifierProvider(create: (context) => UserProfileProvider()),
         ChangeNotifierProvider(create: (context) => ScreenTimeProvider()),
         ChangeNotifierProvider(

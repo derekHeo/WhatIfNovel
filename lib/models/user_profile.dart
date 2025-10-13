@@ -25,7 +25,7 @@ class UserProfile {
     this.longTermGoal,
     this.shortTermGoal,
     this.additionalInfo,
-    this.extraInfo, // 💡 생성자에 추가
+    this.extraInfo, // 생성자에 추가
     this.keywords = const [],
     this.styleAnswers,
     this.agreeToDataUsage = false,

@@ -8,39 +8,35 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7), // iOS 설정 화면과 동일한 연한 회색
+      // ✨ 배경색을 디자인에 맞게 변경
+      backgroundColor: const Color(0xFFFDFBFA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF2F2F7), // AppBar도 동일한 배경색
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
-            Icons.arrow_back_ios,
+            Icons.arrow_back, // iOS 스타일보다 Material 기본 아이콘이 더 잘 어울립니다.
             color: Colors.black,
-            size: 20,
           ),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
           '설정',
           style: TextStyle(
             color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
           ),
         ),
         centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
         child: Column(
           children: [
-            // 프로필 수정
-            _buildSettingsItem(
-              icon: Icons.person_outline,
+            // ✨ 새로운 UI를 위한 카드 위젯 호출
+            _buildSettingsCard(
               title: '프로필 수정',
-              subtitle: '모습 학교 있는 일이나 취미가 바뀌었을 때,\n내 소개를 업데이트할 수 있어요.',
+              description: '요즘 하고 있는 일이나 취미가 바뀌었을 때, 내 소개를 업데이트할 수 있어요.',
               onTap: () {
                 Navigator.of(context).push(
                   CupertinoPageRoute(
@@ -49,107 +45,106 @@ class SettingsScreen extends StatelessWidget {
                 );
               },
             ),
-
-            const SizedBox(height: 15),
-
-            // 알림 설정
-            _buildSettingsItem(
-              icon: Icons.notifications_none,
-              title: '알림 설정',
-              subtitle: '지정한 시간 또는 사용 습관에 따라 알림을\n받을 수 있어요.',
+            _buildSettingsCard(
+              title: '초기화 시간 설정',
+              description: '휴대폰 사용시간이 초기화 되는 시간대를 변경할 수 있어요.',
               onTap: () {
-                // TODO: 알림 설정 화면으로 이동
+                // TODO: 초기화 시간 설정 화면으로 이동
               },
             ),
-
-            const SizedBox(height: 15),
-
-            // 앱 정보
-            _buildSettingsItem(
-              icon: Icons.info_outline,
-              title: '앱 정보',
-              subtitle: '앱에 대한 소개와 이용 방법이 간단하게\n정리되어 있어요.',
+            _buildSettingsCard(
+              title: '문의하기',
+              description: '앱 사용 또는 실험에 관련된 문의 사항을 보낼 수 있어요.',
               onTap: () {
-                // TODO: 앱 정보 화면으로 이동
+                // TODO: 문의하기 기능 구현
               },
             ),
-
-            const Spacer(),
-
-            // 로그아웃 버튼
-            TextButton(
-              onPressed: () {
-                // TODO: 로그아웃 기능 구현
-                _showLogoutDialog(context);
+            _buildSettingsCard(
+              title: '실험 규칙',
+              description: '앱 사용 방법과 실험 규칙이 정리되어 있어요.',
+              onTap: () {
+                // TODO: 실험 규칙 화면으로 이동
               },
-              child: const Text(
-                '로그아웃',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+            ),
+            const Spacer(), // 남은 공간을 모두 차지
+
+            // ✨ 로그아웃 버튼을 OutlinedButton으로 변경
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: OutlinedButton(
+                onPressed: () => _showLogoutDialog(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
+                child: const Text('로그아웃',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
-
-            const SizedBox(height: 30),
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSettingsItem({
-    required IconData icon,
+  // ✨ 새로운 카드 UI를 만드는 재사용 위젯
+  Widget _buildSettingsCard({
     required String title,
-    required String subtitle,
+    required String description,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: const Color(0xFFF5E6A3), // 노란색 배경
-          borderRadius: BorderRadius.circular(12),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 8,
+            )
+          ],
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              icon,
-              size: 24,
-              color: Colors.black,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // 상단 노란색 헤더
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFF4B6),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     title,
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.black54,
-                      height: 1.3,
-                    ),
-                  ),
+                  const Icon(Icons.arrow_forward_ios,
+                      size: 16, color: Colors.grey),
                 ],
               ),
             ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: Colors.black54,
+            // 하단 흰색 설명 영역
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Text(
+                description,
+                style: TextStyle(color: Colors.grey.shade700, height: 1.5),
+              ),
             ),
           ],
         ),
@@ -157,6 +152,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  // 로그아웃 다이얼로그 (기존과 동일)
   void _showLogoutDialog(BuildContext context) {
     showCupertinoDialog(
       context: context,
@@ -167,9 +163,7 @@ class SettingsScreen extends StatelessWidget {
           actions: [
             CupertinoDialogAction(
               child: const Text('취소'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
             ),
             CupertinoDialogAction(
               isDestructiveAction: true,
