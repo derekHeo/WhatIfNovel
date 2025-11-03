@@ -1,47 +1,80 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_profile.dart';
 
 class UserProfileProvider with ChangeNotifier {
-  // ⚠️ 중요: UserProfile 모델의 생성자 기본값이 바뀌었으므로,
-  // 초기화 시 빈 UserProfile 객체를 올바르게 생성하도록 수정합니다.
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   UserProfile _userProfile = UserProfile(name: '');
+  bool _isLoading = false;
 
   UserProfile get userProfile => _userProfile;
+  bool get isLoading => _isLoading;
 
   UserProfileProvider() {
     _loadProfile();
   }
 
   Future<void> _loadProfile() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      print('프로필 로드: 로그인된 사용자가 없습니다.');
+      return;
+    }
+
+    _isLoading = true;
+    notifyListeners();
+
     try {
-      var box = await Hive.openBox('user_profile');
-      final profileData = box.get('profile');
-      if (profileData != null) {
-        // fromMap은 UserProfile 모델에서 이미 수정했으므로 이 코드는 그대로 작동합니다.
-        _userProfile =
-            UserProfile.fromMap(Map<String, dynamic>.from(profileData));
+      final doc = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('profile')
+          .doc('data')
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        _userProfile = UserProfile.fromMap(doc.data()!);
         notifyListeners();
       }
     } catch (e) {
       print('프로필 로드 에러: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
   Future<void> saveProfile(UserProfile profile) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('로그인이 필요합니다.');
+    }
+
+    _isLoading = true;
+    notifyListeners();
+
     try {
-      var box = await Hive.openBox('user_profile');
-      // toMap은 UserProfile 모델에서 이미 수정했으므로 이 코드는 그대로 작동합니다.
-      await box.put('profile', profile.toMap());
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('profile')
+          .doc('data')
+          .set(profile.toMap(), SetOptions(merge: true));
+
       _userProfile = profile;
       notifyListeners();
     } catch (e) {
       print('프로필 저장 에러: $e');
       throw Exception('프로필 저장에 실패했습니다.');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  // 변경: updateProfile 메서드의 파라미터를 새 모델에 맞게 수정
   Future<void> updateProfile({
     String? name,
     int? birthYear,
@@ -49,14 +82,14 @@ class UserProfileProvider with ChangeNotifier {
     int? birthDay,
     String? gender,
     String? job,
-    String? longTermGoal, // currentActivities -> longTermGoal
-    String? shortTermGoal, // shortTermGoal 추가
+    String? longTermGoal,
+    String? shortTermGoal,
     String? additionalInfo,
+    String? extraInfo,
     List<String>? keywords,
-    Map<String, List<String>>? styleAnswers, // styleAnswers 추가
+    Map<String, List<String>>? styleAnswers,
     bool? agreeToDataUsage,
   }) async {
-    // copyWith 호출을 새 모델에 맞게 수정
     final updatedProfile = _userProfile.copyWith(
       name: name,
       birthYear: birthYear,
@@ -67,6 +100,7 @@ class UserProfileProvider with ChangeNotifier {
       longTermGoal: longTermGoal,
       shortTermGoal: shortTermGoal,
       additionalInfo: additionalInfo,
+      extraInfo: extraInfo,
       keywords: keywords,
       styleAnswers: styleAnswers,
       agreeToDataUsage: agreeToDataUsage,
@@ -76,21 +110,40 @@ class UserProfileProvider with ChangeNotifier {
   }
 
   Future<void> clearProfile() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      print('프로필 삭제: 로그인된 사용자가 없습니다.');
+      return;
+    }
+
+    _isLoading = true;
+    notifyListeners();
+
     try {
-      var box = await Hive.openBox('user_profile');
-      await box.delete('profile');
-      // UserProfile 모델의 생성자 기본값이 바뀌었으므로, 초기화 코드를 수정합니다.
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('profile')
+          .doc('data')
+          .delete();
+
       _userProfile = UserProfile(name: '');
       notifyListeners();
     } catch (e) {
       print('프로필 삭제 에러: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  // 변경: 프로필 완성도 체크 로직을 새 모델 필드에 맞게 수정
+  /// 로그인 후 프로필을 다시 로드하는 메서드
+  Future<void> reloadProfile() async {
+    await _loadProfile();
+  }
+
   double get profileCompleteness {
-    // 장기/단기 목표가 추가되었으므로 총 필드 수를 8개로 변경
-    int totalFields = 8;
+    int totalFields = 9; // extraInfo 추가로 9개
     int completedFields = 0;
 
     if (_userProfile.name.isNotEmpty) completedFields++;
@@ -101,7 +154,6 @@ class UserProfileProvider with ChangeNotifier {
     if (_userProfile.job != null && _userProfile.job!.isNotEmpty) {
       completedFields++;
     }
-    // currentActivities 대신 longTermGoal, shortTermGoal을 각각 체크
     if (_userProfile.longTermGoal != null &&
         _userProfile.longTermGoal!.isNotEmpty) {
       completedFields++;
@@ -114,7 +166,10 @@ class UserProfileProvider with ChangeNotifier {
         _userProfile.additionalInfo!.isNotEmpty) {
       completedFields++;
     }
-    // styleAnswers가 비어있지 않다면 필드를 채운 것으로 간주 (기존 keywords도 호환)
+    if (_userProfile.extraInfo != null &&
+        _userProfile.extraInfo!.isNotEmpty) {
+      completedFields++;
+    }
     if ((_userProfile.styleAnswers != null &&
             _userProfile.styleAnswers!.values.any((list) => list.isNotEmpty)) ||
         _userProfile.keywords.isNotEmpty) {
@@ -125,10 +180,7 @@ class UserProfileProvider with ChangeNotifier {
     return completedFields / totalFields;
   }
 
-  // GPT용 프로필 텍스트 가져오기
   String getProfileForPrompt() {
-    // UserProfile 모델의 isEmpty와 toPromptText는 이미 수정되었으므로
-    // 이 코드는 그대로 작동합니다.
     if (_userProfile.isEmpty) {
       return '사용자 프로필: 정보 없음';
     }

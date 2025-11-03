@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_goal_provider.dart';
+import '../providers/todo_provider.dart';
 import '../models/app_goal_model.dart';
 
 class GoalSettingScreen extends StatefulWidget {
@@ -39,16 +40,29 @@ class _GoalSettingScreenState extends State<GoalSettingScreen> {
     super.dispose();
   }
 
-  void _saveGoals() {
+  Future<void> _saveGoals() async {
     final appGoalProvider =
         Provider.of<AppGoalProvider>(context, listen: false);
-    _controllers.forEach((appName, controllers) {
+    final todoProvider =
+        Provider.of<TodoProvider>(context, listen: false);
+
+    // forEach는 async/await와 호환되지 않으므로 for문 사용
+    for (var entry in _controllers.entries) {
+      final appName = entry.key;
+      final controllers = entry.value;
       final hours = int.tryParse(controllers['hours']!.text) ?? 0;
       final minutes = int.tryParse(controllers['minutes']!.text) ?? 0;
-      appGoalProvider.updateGoal(appName, hours, minutes);
-    });
-    // 저장 후 홈 화면으로 돌아가기
-    Navigator.of(context).pop();
+      await appGoalProvider.updateGoal(appName, hours, minutes);
+    }
+
+    // 목표 변경 후 사용 시간과 Todo 초기화
+    await appGoalProvider.resetAllUsage();
+    await todoProvider.clearAllTodos();
+
+    // 저장 완료 후 홈 화면으로 돌아가기
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
@@ -104,7 +118,7 @@ class _GoalSettingScreenState extends State<GoalSettingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('전날 성공률', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text('목표 사용시간', style: TextStyle(fontWeight: FontWeight.bold)),
           // ... 성공률 바 ...
           const SizedBox(height: 24),
           ...goals.map((goal) => _buildGoalInputRow(goal)).toList(),

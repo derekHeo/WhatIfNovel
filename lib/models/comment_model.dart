@@ -16,10 +16,22 @@ class CommentModel {
 
   /// Map에서 CommentModel 객체 생성 (DiaryModel.fromMap과 동일한 방식)
   factory CommentModel.fromMap(Map<String, dynamic> map) {
+    // Firestore Timestamp를 DateTime으로 변환 (웹 호환성)
+    DateTime parseCreatedAt(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is DateTime) return value;
+      if (value is String) return DateTime.parse(value);
+      // Firestore Timestamp 처리 (toDate() 메서드 사용)
+      if (value.runtimeType.toString() == 'Timestamp') {
+        return (value as dynamic).toDate();
+      }
+      return DateTime.now();
+    }
+
     return CommentModel(
       id: map['id'] as String,
       content: map['content'] as String,
-      createdAt: DateTime.parse(map['createdAt'] as String),
+      createdAt: parseCreatedAt(map['createdAt']),
       diaryId: map['diaryId'] as String,
       authorName: map['authorName'] as String?,
     );
@@ -30,7 +42,7 @@ class CommentModel {
     return {
       'id': id,
       'content': content,
-      'createdAt': createdAt.toIso8601String(),
+      'createdAt': createdAt.toIso8601String(), // ISO8601 문자열로 저장 (웹 호환)
       'diaryId': diaryId,
       'authorName': authorName,
     };

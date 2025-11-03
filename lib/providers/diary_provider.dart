@@ -1,9 +1,11 @@
+//diary_provider.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/diary_model.dart';
 import '../models/user_profile.dart';
-import '../services/gpt_service.dart';
+import '../services/claude_service.dart';
 import '../services/firestore_service.dart';
 import 'user_profile_provider.dart';
 
@@ -70,32 +72,85 @@ class DiaryProvider with ChangeNotifier {
         todoList: todoList,
       );
 
-      final generatedText = await GptService.generateNovel(finalPrompt);
+      final generatedText = await ClaudeService.generateNovel(finalPrompt);
 
-      final title =
-          generatedText.split('\n').first.replaceFirst('시나리오:', '').trim();
-      final content = generatedText.substring(title.length + 10).trim();
+      // 웹 호환성을 위한 안전한 문자열 파싱
+      print('생성된 텍스트 타입: ${generatedText.runtimeType}');
+      print('생성된 텍스트 길이: ${generatedText.length}');
+      print(
+          '생성된 텍스트 첫 100자: ${generatedText.length > 100 ? generatedText.substring(0, 100) : generatedText}');
+
+      // userInput 생성: todo + 프로필 정보 (단기목표, 장기목표, current activities)
+      final userInputText = _createUserInputText(
+        userProfile: userProfile,
+        todoList: todoList,
+      );
 
       _lastNovel = DiaryModel(
         id: DateTime.now().toIso8601String(),
-        title: title,
-        content: content,
-        userInput: "목표 기반 시나리오",
+        content: generatedText,
+        userInput: userInputText,
         createdAt: DateTime.now(),
+        // 앱 사용량 정보 저장
+        appGoals: Map<String, dynamic>.from(
+            appGoals.map((key, value) => MapEntry(key, value))),
+        appUsage: Map<String, dynamic>.from(
+            appUsage.map((key, value) => MapEntry(key, value))),
       );
 
       // Firestore에 저장
+      print('Firestore 저장 시작...');
       await _saveDiary(_lastNovel!);
+      print('Firestore 저장 완료');
 
       // 로컬 리스트에도 추가
       _diaries.insert(0, _lastNovel!); // 최신순으로 맨 앞에 추가
-    } catch (e) {
-      print(e);
+      print('로컬 리스트 추가 완료');
+    } catch (e, stackTrace) {
+      print('일기 생성 중 오류 발생');
+      print('오류 타입: ${e.runtimeType}');
+      print('오류 내용: $e');
+      print('스택 트레이스: $stackTrace');
       rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// userInput 생성: todo + 프로필 정보
+  String _createUserInputText({
+    required UserProfile userProfile,
+    required List<Map<String, dynamic>> todoList,
+  }) {
+    final buffer = StringBuffer();
+
+    // 프로필 정보
+    buffer.writeln('=== 프로필 정보 ===');
+    if (userProfile.shortTermGoal != null && userProfile.shortTermGoal!.isNotEmpty) {
+      buffer.writeln('단기 목표: ${userProfile.shortTermGoal}');
+    }
+    if (userProfile.longTermGoal != null && userProfile.longTermGoal!.isNotEmpty) {
+      buffer.writeln('장기 목표: ${userProfile.longTermGoal}');
+    }
+    if (userProfile.additionalInfo != null && userProfile.additionalInfo!.isNotEmpty) {
+      buffer.writeln('요즘 하는 일: ${userProfile.additionalInfo}');
+    }
+
+    // Todo 리스트
+    buffer.writeln('\n=== 오늘의 할 일 ===');
+    if (todoList.isEmpty) {
+      buffer.writeln('작성된 할 일이 없습니다.');
+    } else {
+      for (var todo in todoList) {
+        final text = todo['text'] ?? '';
+        final isChecked = todo['isChecked'] ?? false;
+        final status = isChecked ? '✓' : '☐';
+        buffer.writeln('$status $text');
+      }
+    }
+
+    return buffer.toString();
   }
 
   String _createTodoSummary(List<Map<String, dynamic>> todoList) {
@@ -191,15 +246,6 @@ class DiaryProvider with ChangeNotifier {
     return result.trim();
   }
 
-  String _extractKeywords(UserProfile userProfile) {
-    if (userProfile.styleAnswers != null &&
-        userProfile.styleAnswers!.isNotEmpty) {
-      return userProfile.styleAnswers!.values.expand((list) => list).join(', ');
-    } else {
-      return userProfile.keywords.join(', ');
-    }
-  }
-
   // 새로운 프롬프트 생성 함수
   String _buildFinalPrompt({
     required String profileDetails,
@@ -212,8 +258,6 @@ class DiaryProvider with ChangeNotifier {
   }) {
     final longTermGoal = userProfile.longTermGoal ?? "정보 없음";
     final shortTermGoal = userProfile.shortTermGoal ?? "정보 없음";
-    final additionalInfo = userProfile.additionalInfo ?? "정보 없음";
-    final keywords = _extractKeywords(userProfile);
     final appAchievementDetail =
         _createAppAchievementDetail(appGoals, appUsage);
     final dailyAchievementRate = _calculateDailyAchievementRate(todoList);
@@ -245,7 +289,8 @@ coping_style을 직접 언급하지 않고 행동과 사고 패턴으로 어떻�
 흥미로운 상황이나 반전 요소를 어떻게 넣을 것인가?,
 독자가 몰입할 수 있는 구체적 장면은 무엇인가?,
 적절한 유머나 위트를 어떻게 포함시킬 것인가?,
-특히 실패 서사에서는 삶이 최종적으로 비극적 종말을 맞이한 상태를 이미 되어버린 현실처럼 생생히 묘사하여, 독자가 강렬한 좌절감과 경각심을 느낄 수 있도록 할 것., , </think> --- 2단계: 소설 작성 작성 지침
+특히 실패 서사에서는 삶이 최종적으로 비극적 종말을 맞이한 상태를 이미 되어버린 현실처럼 생생히 묘사하여, 독자가 강렬한 좌절감과 경각심을 느낄 수 있도록 할 것., , </think> 
+--- 2단계: 소설 작성 작성 지침
 총 분량: 1000~1400자,
 성공 서사: 500~700자, 구체적인 성취를 계속 이루었을 때의 압도적으로 긍정적인 미래 묘사,
 실패 서사: 500~700자, 작은 미루기가 반복되어 결국 삶이 완전히 붕괴되고 비극적으로 마무리된 상태를 이미 경험한 듯 묘사,

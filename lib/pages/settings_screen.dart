@@ -29,64 +29,68 @@ class SettingsScreen extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-        child: Column(
-          children: [
-            // ✨ 새로운 UI를 위한 카드 위젯 호출
-            _buildSettingsCard(
-              title: '프로필 수정',
-              description: '요즘 하고 있는 일이나 취미가 바뀌었을 때, 내 소개를 업데이트할 수 있어요.',
-              onTap: () {
-                Navigator.of(context).push(
-                  CupertinoPageRoute(
-                    builder: (context) => const ProfileEditPage(),
-                  ),
-                );
-              },
-            ),
-            _buildSettingsCard(
-              title: '초기화 시간 설정',
-              description: '휴대폰 사용시간이 초기화 되는 시간대를 변경할 수 있어요.',
-              onTap: () {
-                // TODO: 초기화 시간 설정 화면으로 이동
-              },
-            ),
-            _buildSettingsCard(
-              title: '문의하기',
-              description: '앱 사용 또는 실험에 관련된 문의 사항을 보낼 수 있어요.',
-              onTap: () {
-                // TODO: 문의하기 기능 구현
-              },
-            ),
-            _buildSettingsCard(
-              title: '실험 규칙',
-              description: '앱 사용 방법과 실험 규칙이 정리되어 있어요.',
-              onTap: () {
-                // TODO: 실험 규칙 화면으로 이동
-              },
-            ),
-            const Spacer(), // 남은 공간을 모두 차지
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+            child: Column(
+              children: [
+                // ✨ 새로운 UI를 위한 카드 위젯 호출
+                _buildSettingsCard(
+                  title: '프로필 수정',
+                  description: '요즘 하고 있는 일이나 취미가 바뀌었을 때, 내 소개를 업데이트할 수 있어요.',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      CupertinoPageRoute(
+                        builder: (context) => const ProfileEditPage(),
+                      ),
+                    );
+                  },
+                ),
+                _buildSettingsCard(
+                  title: '초기화 시간 설정',
+                  description: '휴대폰 사용시간이 초기화 되는 시간대를 변경할 수 있어요.',
+                  onTap: () {
+                    // TODO: 초기화 시간 설정 화면으로 이동
+                  },
+                ),
+                _buildSettingsCard(
+                  title: '문의하기',
+                  description: '앱 사용 또는 실험에 관련된 문의 사항을 보낼 수 있어요.',
+                  onTap: () {
+                    // TODO: 문의하기 기능 구현
+                  },
+                ),
+                _buildSettingsCard(
+                  title: '실험 규칙',
+                  description: '앱 사용 방법과 실험 규칙이 정리되어 있어요.',
+                  onTap: () {
+                    // TODO: 실험 규칙 화면으로 이동
+                  },
+                ),
+                const SizedBox(height: 20),
 
-            // ✨ 로그아웃 버튼을 OutlinedButton으로 변경
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: OutlinedButton(
-                onPressed: () => _showLogoutDialog(context),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                // ✨ 로그아웃 버튼을 OutlinedButton으로 변경
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton(
+                    onPressed: () => _showLogoutDialog(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('로그아웃',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
-                child: const Text('로그아웃',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
+                const SizedBox(height: 40),
+              ],
             ),
-            const SizedBox(height: 40),
-          ],
+          ),
         ),
       ),
     );

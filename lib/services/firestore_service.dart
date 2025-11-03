@@ -1,10 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/diary_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // 컬렉션 이름들
+  static const String _usersCollection = 'users';
   static const String _diariesCollection = 'diaries';
   static const String _commentsCollection = 'comments';
   static const String _userProfilesCollection = 'user_profiles';
@@ -12,10 +15,17 @@ class FirestoreService {
 
   // ==================== Diary 관련 메서드 ====================
 
-  /// 새로운 일기 생성
+  /// 새로운 일기 생성 (사용자별 컬렉션에 저장)
   Future<void> createDiary(DiaryModel diary) async {
     try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
       await _firestore
+          .collection(_usersCollection)
+          .doc(user.uid)
           .collection(_diariesCollection)
           .doc(diary.id)
           .set(diary.toMap());
@@ -24,9 +34,16 @@ class FirestoreService {
     }
   }
 
-  /// 모든 일기 가져오기 (실시간 스트림)
+  /// 모든 일기 가져오기 (실시간 스트림) - 현재 사용자만
   Stream<List<DiaryModel>> getDiariesStream() {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return Stream.value([]);
+    }
+
     return _firestore
+        .collection(_usersCollection)
+        .doc(user.uid)
         .collection(_diariesCollection)
         .orderBy('createdAt', descending: true)
         .snapshots()
@@ -37,10 +54,18 @@ class FirestoreService {
     });
   }
 
-  /// 모든 일기 가져오기 (일회성)
+  /// 모든 일기 가져오기 (일회성) - 현재 사용자만
   Future<List<DiaryModel>> getDiaries() async {
     try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        print('일기 로드: 로그인된 사용자가 없습니다.');
+        return [];
+      }
+
       final snapshot = await _firestore
+          .collection(_usersCollection)
+          .doc(user.uid)
           .collection(_diariesCollection)
           .orderBy('createdAt', descending: true)
           .get();
@@ -56,8 +81,17 @@ class FirestoreService {
   /// 특정 일기 가져오기
   Future<DiaryModel?> getDiary(String id) async {
     try {
-      final doc =
-          await _firestore.collection(_diariesCollection).doc(id).get();
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      final doc = await _firestore
+          .collection(_usersCollection)
+          .doc(user.uid)
+          .collection(_diariesCollection)
+          .doc(id)
+          .get();
 
       if (doc.exists) {
         return DiaryModel.fromMap(doc.data()!);
@@ -71,7 +105,14 @@ class FirestoreService {
   /// 일기 수정
   Future<void> updateDiary(DiaryModel diary) async {
     try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
       await _firestore
+          .collection(_usersCollection)
+          .doc(user.uid)
           .collection(_diariesCollection)
           .doc(diary.id)
           .update(diary.toMap());
@@ -83,7 +124,17 @@ class FirestoreService {
   /// 일기 삭제
   Future<void> deleteDiary(String id) async {
     try {
-      await _firestore.collection(_diariesCollection).doc(id).delete();
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      await _firestore
+          .collection(_usersCollection)
+          .doc(user.uid)
+          .collection(_diariesCollection)
+          .doc(id)
+          .delete();
     } catch (e) {
       throw Exception('일기 삭제 실패: $e');
     }

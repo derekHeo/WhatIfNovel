@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'pages/start_screen.dart';
@@ -10,8 +9,9 @@ import 'providers/diary_provider.dart';
 import 'providers/user_profile_provider.dart';
 import 'providers/screen_time_provider.dart';
 import 'providers/comment_provider.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'providers/app_goal_provider.dart';
+import 'providers/auth_provider.dart';
+import 'providers/todo_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,10 +20,6 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  // Hive 초기화
-  await Hive.initFlutter();
-  await dotenv.load(fileName: ".env");
 
   runApp(const MyApp());
 }
@@ -35,17 +31,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (context) => AuthProvider()),
         ChangeNotifierProvider(create: (context) => DiaryProvider()),
-        ChangeNotifierProvider(
-            create: (_) => AppGoalProvider()), // ✨ 이 줄을 추가하세요.
-
+        ChangeNotifierProvider(create: (_) => AppGoalProvider()),
         ChangeNotifierProvider(create: (context) => UserProfileProvider()),
         ChangeNotifierProvider(create: (context) => ScreenTimeProvider()),
-        ChangeNotifierProvider(
-            create: (context) => CommentProvider()..initializeBox()),
+        ChangeNotifierProvider(create: (context) => CommentProvider()),
+        ChangeNotifierProvider(create: (context) => TodoProvider()),
       ],
       child: MaterialApp(
-        title: 'What If Novel Diary',
+        title: 'What If',
         theme: ThemeData(
           // iOS 스타일 테마 설정
           primarySwatch: Colors.blue,

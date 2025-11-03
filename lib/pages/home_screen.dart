@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'goal_setting_screen.dart';
 import 'diary_list_page.dart';
 import 'settings_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/diary_provider.dart';
 import '../pages/novel_detail_page.dart';
 import '../providers/app_goal_provider.dart';
+import '../providers/todo_provider.dart';
 import '../models/app_goal_model.dart';
 
 // import 'package:provider/provider.dart';
@@ -30,31 +30,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // --- 💡 새로운 UI를 위한 더미 데이터 💡 ---
 
-  // 상단 차트 데이터
-  final String totalScreenTime = "4시간 23분";
-
   // 중간 성공률 카드 데이터
   final double overallSuccessRate = 1.0; // 전체 성공률 (100%)
-  final List<Map<String, dynamic>> appUsageData = [
-    {
-      'imagePath': 'assets/images/insta.png',
-      'usage': 0.5,
-      'goal': 1.0,
-      'name': 'insta'
-    },
-    {
-      'imagePath': 'assets/images/youtube.png',
-      'usage': 0.5,
-      'goal': 1.0,
-      'name': 'YouTube'
-    },
-    {
-      'imagePath': 'assets/images/kakao.png',
-      'usage': 0.5,
-      'goal': 1.0,
-      'name': 'Kakao'
-    },
-  ];
 
   // 하단 To-do 리스트 데이터
   final List<Map<String, dynamic>> _todoList = [
@@ -94,7 +71,10 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               const SizedBox(height: 16),
               // 상단 스크린 타임 차트 카드 (기존과 동일)
-              _buildScreenTimeChartCard(),
+              _buildScreenTimeChartCard(appGoalProvider),
+              const SizedBox(height: 24),
+              // ✨ 사용시간 입력 카드
+              _buildUsageInputCard(appGoalProvider),
               const SizedBox(height: 24),
               // ✨ 새로 추가된 중간 성공률 카드
               _buildSuccessRateCard(appGoalProvider.goals),
@@ -125,8 +105,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildScreenTimeChartCard() {
-    // 이 위젯은 이전과 동일하게 유지됩니다.
+  Widget _buildScreenTimeChartCard(AppGoalProvider appGoalProvider) {
+    // ✨ Provider를 통해 총 사용시간을 동적으로 계산
+    final totalScreenTime = appGoalProvider.getTotalUsageFormatted();
+
     return Container(
       padding: const EdgeInsets.all(20.0),
       decoration: BoxDecoration(
@@ -218,7 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 24),
           // 앱별 사용량
-          ...goals.map((goal) => _buildAppUsageRow(goal)).toList(),
+          ...goals.map((goal) => _buildAppUsageRow(goal)),
         ],
       ),
     );
@@ -229,10 +211,18 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildAppUsageRow(AppGoal goal) {
     // 목표 시간과 사용 시간을 분 단위로 변환하여 진행률 계산
     final goalTotalMinutes = goal.goalHours * 60 + goal.goalMinutes;
-    final usageTotalMinutes = goal.usageHours * 60;
+    final usageTotalMinutes = (goal.usageHours * 60).toInt() + goal.usageMinutes;
     // 목표가 0일 경우를 대비하여 분모가 0이 되지 않도록 처리
     final progress =
         goalTotalMinutes > 0 ? (usageTotalMinutes / goalTotalMinutes) : 0.0;
+
+    // 목표 초과 여부에 따라 색상 결정
+    final isExceeded = progress >= 1.0;
+    final barColor = isExceeded ? Colors.red : Colors.blue;
+
+    // 사용시간을 시간과 분으로 분리하여 표시
+    final usageHoursPart = goal.usageHours.toInt();
+    final usageMinutesPart = goal.usageMinutes;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
@@ -247,22 +237,21 @@ class _HomeScreenState extends State<HomeScreen> {
               minHeight: 10, // 프로그레스 바의 높이
               borderRadius: BorderRadius.circular(5), // 모서리를 둥글게
               backgroundColor: Colors.grey.shade200, // 배경색
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(Colors.blue), // 진행 막대 색상
+              valueColor: AlwaysStoppedAnimation<Color>(barColor), // 목표 초과 시 빨간색
               // ---------------------------
             ),
           ),
           const SizedBox(width: 16),
-          // 목표 시간에 분(minute)도 표시되도록 수정
-          Text('${goal.usageHours}h / ${goal.goalHours}h ${goal.goalMinutes}m',
+          // ✨ 실제 사용시간과 목표시간을 동적으로 표시
+          Text('${usageHoursPart}h ${usageMinutesPart}m / ${goal.goalHours}h ${goal.goalMinutes}m',
               style: const TextStyle(fontSize: 14, color: Colors.grey)),
         ],
       ),
     );
   }
 
-  // ✨ 새로 추가된 To-do 리스트 카드 위젯
-  Widget _buildTodoListCard() {
+  // ✨ 사용시간 입력 카드 위젯
+  Widget _buildUsageInputCard(AppGoalProvider appGoalProvider) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -278,75 +267,165 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('To do list',
+          const Text('오늘의 스마트폰 사용시간 입력',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          // 할 일 목록
-          Column(
-            children: _todoList.asMap().entries.map((entry) {
-              int index = entry.key;
-              Map<String, dynamic> todoItem = entry.value;
+          const SizedBox(height: 16),
+          ...appGoalProvider.goals.map((goal) => _buildUsageInputRow(goal, appGoalProvider)),
+        ],
+      ),
+    );
+  }
 
-              return SizedBox(
-                height: 40,
-                child: CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  title: Text(
-                    todoItem['text'],
-                    style: TextStyle(
-                      decoration: todoItem['isChecked']
-                          ? TextDecoration.lineThrough
-                          : TextDecoration.none,
-                      color: todoItem['isChecked'] ? Colors.grey : Colors.black,
-                    ),
-                  ),
-                  value: todoItem['isChecked'],
-                  onChanged: (bool? value) {
-                    // 체크박스 상태 변경 로직
-                    setState(() {
-                      _todoList[index]['isChecked'] = value!;
-                    });
-                  },
-                ),
-              );
-            }).toList(),
+  // ✨ 각 앱별 사용시간 입력 행
+  Widget _buildUsageInputRow(AppGoal goal, AppGoalProvider appGoalProvider) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Row(
+        children: [
+          Image.asset(goal.imagePath, width: 32, height: 32),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(goal.name,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
           ),
-          // 새 할 일 입력 필드
-          Row(
-            children: [
-              const SizedBox(width: 12), // 체크박스와 정렬을 맞추기 위한 간격
-              Expanded(
-                child: TextField(
-                  controller: _todoInputController,
-                  decoration: const InputDecoration(
-                    hintText: '할 일 입력',
-                    border: UnderlineInputBorder(),
-                  ),
-                  onSubmitted: (_) => _addTodoItem(),
-                ),
+          // 시간 입력
+          SizedBox(
+            width: 70,
+            child: TextField(
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                hintText: '${goal.usageHours.toInt()}',
+                suffix: const Text('h', style: TextStyle(fontSize: 12)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              IconButton(
-                icon: const Icon(Icons.add, color: Colors.blue),
-                onPressed: _addTodoItem,
+              onChanged: (value) {
+                final hours = double.tryParse(value) ?? 0.0;
+                appGoalProvider.updateUsage(goal.name, hours, goal.usageMinutes);
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          // 분 입력
+          SizedBox(
+            width: 70,
+            child: TextField(
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                hintText: '${goal.usageMinutes}',
+                suffix: const Text('m', style: TextStyle(fontSize: 12)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
-            ],
+              onChanged: (value) {
+                final minutes = int.tryParse(value) ?? 0;
+                appGoalProvider.updateUsage(goal.name, goal.usageHours, minutes);
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ✨ 3. 새 할 일을 리스트에 추가하는 함수 추가 (goal_setting_screen과 동일)
-  void _addTodoItem() {
+  // ✨ 새로 추가된 To-do 리스트 카드 위젯
+  Widget _buildTodoListCard() {
+    return Consumer<TodoProvider>(
+      builder: (context, todoProvider, child) {
+        final todoList = todoProvider.todos;
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 2,
+                  blurRadius: 10)
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('To do list',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              // 할 일 목록
+              Column(
+                children: todoList.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  Map<String, dynamic> todoItem = entry.value;
+
+                  return SizedBox(
+                    height: 40,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            title: Text(
+                              todoItem['text'],
+                              style: TextStyle(
+                                decoration: todoItem['isChecked']
+                                    ? TextDecoration.lineThrough
+                                    : TextDecoration.none,
+                                color: todoItem['isChecked'] ? Colors.grey : Colors.black,
+                              ),
+                            ),
+                            value: todoItem['isChecked'],
+                            onChanged: (bool? value) {
+                              todoProvider.toggleTodo(index);
+                            },
+                          ),
+                        ),
+                        // 삭제 버튼 추가
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          color: Colors.grey,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => todoProvider.deleteTodo(index),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+              // 새 할 일 입력 필드
+              Row(
+                children: [
+                  const SizedBox(width: 12), // 체크박스와 정렬을 맞추기 위한 간격
+                  Expanded(
+                    child: TextField(
+                      controller: _todoInputController,
+                      decoration: const InputDecoration(
+                        hintText: '할 일 입력',
+                        border: UnderlineInputBorder(),
+                      ),
+                      onSubmitted: (_) => _addTodoItem(todoProvider),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add, color: Colors.blue),
+                    onPressed: () => _addTodoItem(todoProvider),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ✨ 새 할 일을 리스트에 추가하는 함수
+  void _addTodoItem(TodoProvider todoProvider) {
     if (_todoInputController.text.isNotEmpty) {
-      setState(() {
-        _todoList.add({
-          'text': _todoInputController.text,
-          'isChecked': false,
-        });
-        _todoInputController.clear();
-      });
+      todoProvider.addTodo(_todoInputController.text);
+      _todoInputController.clear();
     }
   }
 
@@ -369,22 +448,32 @@ class _HomeScreenState extends State<HomeScreen> {
                     });
 
                     try {
+                      // ✨ AppGoalProvider에서 실제 데이터를 가져옴
+                      final appGoalProvider = Provider.of<AppGoalProvider>(context, listen: false);
+                      final goals = appGoalProvider.goals;
+
                       // 홈 화면의 데이터를 Provider가 요구하는 형식으로 가공
                       final Map<String, int?> appGoals = {
-                        for (var app in appUsageData)
-                          app['name']: (app['goal'] as double).toInt()
+                        for (var goal in goals)
+                          goal.name: (goal.goalHours * 60 + goal.goalMinutes)
                       };
+
+                      // ✨ 실제 사용시간 데이터 (시간 + 분을 시간 단위로 변환)
                       final Map<String, double> appUsage = {
-                        for (var app in appUsageData)
-                          app['name']: app['usage'] as double
+                        for (var goal in goals)
+                          goal.name: goal.usageHours + (goal.usageMinutes / 60.0)
                       };
+
+                      // TodoProvider에서 todoList 가져오기
+                      final todoProvider = Provider.of<TodoProvider>(context, listen: false);
+                      final todoList = todoProvider.todos;
 
                       // DiaryProvider 호출
                       await Provider.of<DiaryProvider>(context, listen: false)
                           .generateGoalBasedNovel(
                         context: context,
                         appGoals: appGoals,
-                        todoList: _todoList,
+                        todoList: todoList,
                         appUsage: appUsage,
                       );
 

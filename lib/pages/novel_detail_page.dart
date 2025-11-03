@@ -103,13 +103,6 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          '<내가 쓴 글>',
-                          style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black54),
-                        ),
                         const SizedBox(height: 12),
                         Text(
                           widget.diary.userInput,
@@ -117,6 +110,13 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                               fontSize: 16, color: Colors.black, height: 1.6),
                         ),
                         const SizedBox(height: 30),
+                        // 앱 사용량 정보 표시
+                        if (widget.diary.appGoals != null &&
+                            widget.diary.appUsage != null)
+                          _buildAppUsageCard(),
+                        if (widget.diary.appGoals != null &&
+                            widget.diary.appUsage != null)
+                          const SizedBox(height: 30),
                         const Divider(thickness: 1, color: Colors.black12),
                         const SizedBox(height: 30),
                         Text(
@@ -231,6 +231,130 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
           ),
         );
       },
+    );
+  }
+
+  // 앱 사용량 카드 위젯
+  Widget _buildAppUsageCard() {
+    final appGoals = widget.diary.appGoals!;
+    final appUsage = widget.diary.appUsage!;
+
+    // 앱 이미지 매핑
+    final appImages = {
+      'Instagram': 'assets/images/insta.png',
+      'YouTube': 'assets/images/youtube.png',
+      'KakaoTalk': 'assets/images/kakao.png',
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '📱 당시 스마트폰 사용 현황',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...appGoals.keys.map((appName) {
+            final goalMinutes = appGoals[appName] as int?;
+            final usageHours = appUsage[appName] as double?;
+
+            if (goalMinutes == null || usageHours == null)
+              return const SizedBox.shrink();
+
+            final goalHours = goalMinutes ~/ 60;
+            final goalMins = goalMinutes % 60;
+            final usageH = usageHours.toInt();
+            final usageM = ((usageHours - usageH) * 60).toInt();
+
+            // 목표 초과 여부를 먼저 계산
+            final rawProgress = goalMinutes > 0
+                ? (usageHours * 60 / goalMinutes)
+                : 0.0;
+            final isExceeded = rawProgress >= 1.0;
+            final progress = rawProgress.clamp(0.0, 1.0);
+            final barColor = isExceeded ? Colors.red : Colors.blue;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: Row(
+                children: [
+                  // 앱 아이콘
+                  if (appImages.containsKey(appName))
+                    Image.asset(appImages[appName]!, width: 28, height: 28),
+                  if (!appImages.containsKey(appName))
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.smartphone, size: 16),
+                    ),
+                  const SizedBox(width: 16),
+                  // 프로그레스 바
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          appName,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 8,
+                          borderRadius: BorderRadius.circular(4),
+                          backgroundColor: Colors.grey.shade200,
+                          valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // 사용량 표시
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${usageH}h ${usageM}m',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: barColor,
+                        ),
+                      ),
+                      Text(
+                        '/ ${goalHours}h ${goalMins}m',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
     );
   }
 
