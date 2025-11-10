@@ -48,7 +48,7 @@ class DiaryProvider with ChangeNotifier {
     required BuildContext context,
     required Map<String, int?> appGoals,
     required List<Map<String, dynamic>> todoList,
-    required Map<String, double> appUsage,
+    required Map<String, int> appUsage,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -125,16 +125,41 @@ class DiaryProvider with ChangeNotifier {
   }) {
     final buffer = StringBuffer();
 
-    // 프로필 정보
-    buffer.writeln('=== 프로필 정보 ===');
-    if (userProfile.shortTermGoal != null && userProfile.shortTermGoal!.isNotEmpty) {
+    // 기본 정보
+    buffer.writeln('=== 기본 정보 ===');
+    buffer.writeln('이름: ${userProfile.name}');
+    if (userProfile.birthYear != null) {
+      final age = DateTime.now().year - userProfile.birthYear!;
+      buffer.writeln('나이: ${age}세');
+    }
+    if (userProfile.gender != null && userProfile.gender!.isNotEmpty) {
+      buffer.writeln('성별: ${userProfile.gender}');
+    }
+    if (userProfile.job != null && userProfile.job!.isNotEmpty) {
+      buffer.writeln('직업: ${userProfile.job}');
+    }
+
+    // 목표 및 활동
+    buffer.writeln('\n=== 목표 및 활동 ===');
+    if (userProfile.shortTermGoal != null &&
+        userProfile.shortTermGoal!.isNotEmpty) {
       buffer.writeln('단기 목표: ${userProfile.shortTermGoal}');
     }
-    if (userProfile.longTermGoal != null && userProfile.longTermGoal!.isNotEmpty) {
+    if (userProfile.longTermGoal != null &&
+        userProfile.longTermGoal!.isNotEmpty) {
       buffer.writeln('장기 목표: ${userProfile.longTermGoal}');
     }
-    if (userProfile.additionalInfo != null && userProfile.additionalInfo!.isNotEmpty) {
+    if (userProfile.additionalInfo != null &&
+        userProfile.additionalInfo!.isNotEmpty) {
       buffer.writeln('요즘 하는 일: ${userProfile.additionalInfo}');
+    }
+
+    // 성격/스타일
+    if (userProfile.styleAnswers != null &&
+        userProfile.styleAnswers!.isNotEmpty) {
+      buffer.writeln('\n=== 성격/스타일 ===');
+      final styleText = _formatStyleAnswers(userProfile.styleAnswers);
+      buffer.writeln(styleText);
     }
 
     // Todo 리스트
@@ -178,16 +203,23 @@ class DiaryProvider with ChangeNotifier {
   }
 
   String _createAppUsageSummary(
-      Map<String, int?> appGoals, Map<String, double> appUsage) {
+      Map<String, int?> appGoals, Map<String, int> appUsage) {
     String summary = "";
-    appGoals.forEach((appName, goalHours) {
-      if (goalHours != null) {
-        final usageHours = appUsage[appName] ?? 0.0;
-        final rate = goalHours > 0
-            ? (usageHours / goalHours * 100).toStringAsFixed(0)
+    appGoals.forEach((appName, goalMinutes) {
+      if (goalMinutes != null) {
+        final usageMinutes = appUsage[appName] ?? 0;
+        final rate = goalMinutes > 0
+            ? (usageMinutes / goalMinutes * 100).toStringAsFixed(0)
             : "0";
+
+        // 분을 시간과 분으로 변환하여 표시
+        final goalHours = goalMinutes ~/ 60;
+        final goalMins = goalMinutes % 60;
+        final usageHours = usageMinutes ~/ 60;
+        final usageMins = usageMinutes % 60;
+
         summary +=
-            "- $appName: 목표 ${goalHours}시간, 실제 사용 ${usageHours.toStringAsFixed(1)}시간 (목표 대비 $rate% 사용)\n";
+            "- $appName: 목표 ${goalHours}시간 ${goalMins}분, 실제 사용 ${usageHours}시간 ${usageMins}분 (목표 대비 $rate% 사용)\n";
       }
     });
     return summary;
@@ -205,18 +237,22 @@ class DiaryProvider with ChangeNotifier {
 
   // 새로운 데이터 처리 함수들 추가
   String _createAppAchievementDetail(
-      Map<String, int?> appGoals, Map<String, double> appUsage) {
+      Map<String, int?> appGoals, Map<String, int> appUsage) {
     String detail = "";
-    appGoals.forEach((appName, goalHours) {
-      if (goalHours != null) {
-        final usageHours = appUsage[appName] ?? 0.0;
-        final isOver = usageHours > goalHours;
-        final diff = (usageHours - goalHours).abs();
+    appGoals.forEach((appName, goalMinutes) {
+      if (goalMinutes != null) {
+        final usageMinutes = appUsage[appName] ?? 0;
+        final isOver = usageMinutes > goalMinutes;
+        final diffMinutes = (usageMinutes - goalMinutes).abs();
+
+        // 분을 시간과 분으로 변환
+        final diffHours = diffMinutes ~/ 60;
+        final diffMins = diffMinutes % 60;
 
         if (isOver) {
-          detail += "$appName: 목표보다 ${diff.toStringAsFixed(1)}시간 초과. ";
+          detail += "$appName: 목표보다 ${diffHours}시간 ${diffMins}분 초과. ";
         } else {
-          detail += "$appName: 목표보다 ${diff.toStringAsFixed(1)}시간 적게 사용. ";
+          detail += "$appName: 목표보다 ${diffHours}시간 ${diffMins}분 적게 사용. ";
         }
       }
     });
@@ -253,61 +289,126 @@ class DiaryProvider with ChangeNotifier {
     required String todoSummary,
     required UserProfile userProfile,
     required Map<String, int?> appGoals,
-    required Map<String, double> appUsage,
+    required Map<String, int> appUsage,
     required List<Map<String, dynamic>> todoList,
   }) {
+    // 기본 정보
+    final name = userProfile.name;
+    final age = _calculateAge(userProfile);
+    final gender = userProfile.gender ?? "정보 없음";
+    final job = userProfile.job ?? "정보 없음";
+
+    // 목표 정보
     final longTermGoal = userProfile.longTermGoal ?? "정보 없음";
     final shortTermGoal = userProfile.shortTermGoal ?? "정보 없음";
+    final currentActivities = userProfile.additionalInfo ?? "정보 없음";
+
+    // 성격/스타일 정보
+    final styleAnswers = userProfile.styleAnswers;
+    final copingStyle = _formatStyleAnswers(styleAnswers);
+
+    // 달성률 정보
     final appAchievementDetail =
         _createAppAchievementDetail(appGoals, appUsage);
     final dailyAchievementRate = _calculateDailyAchievementRate(todoList);
     final todayTasks = _extractTodayTasks(todoList);
-    final selectedStyleAnswers = userProfile.styleAnswers ?? "정보 없음";
 
     return '''
-당신은 평행우주의 두 가지 하루를 기록하는 반사실적 스토리텔러다. 조건 * 작은 선택 하나가 성공과 실패를 가르는 극적인 차이를 보여줄 것., * 성공 서사에서는 구체적인 성취를 계속 이루었을 때의 압도적으로 긍정적인 미래를 보여줄 것., * 실패 서사에서는 단순한 아쉬움이 아니라, 삶 전체가 붕괴되고 비극적으로 마무리된 결과를 반드시 생생히 묘사할 것., * 실패는 하루가 망친 정도가 아니라, 반복과 누적 끝에 학업, 건강, 인간관계, 미래 계획이 모두 파국을 맞고 결국 삶이 비극적으로 끝나버린 상태로 표현할 것., * 반드시 “~되었다 / ~였다” 완료형으로 작성해, 미래 예측이 아닌 이미 벌어진 현실처럼 들리도록 할 것., * 두 이야기는 각각 소제목을 달아 “성공한 하루”와 “실패한 하루”로 뚜렷이 구분할 것., * 직접적인 교훈 문장은 쓰지 않고, 이야기 전개만으로 독자가 스스로 압박감과 경각심을 느끼게 할 것., 입력 데이터##### --- 작성 프로세스 1단계: 스토리 설계 추론 <think> 다음 사항들을 차례대로 분석하고 추론하라: 1. 목표와 할 일의 연관성 분석 * today_tasks 각각이 short_term_goal 달성에 어떻게 기여하는가?, * short_term_goal이 long_term_goal 실현에 어떤 역할을 하는가?, * current_activities가 전체 목표 체계와 어떻게 연결되는가?, ,
-1. 성공 요인과 실제적 결과 분석
-   * coping_style이 성공에 어떤 자연스러운 영향을 미쳤는가?,
-   * 오늘의 성공이 실질적으로 어떤 변화를 가져올 것인가?,
-   * 이 성공이 다음 단계 목표 달성에 미치는 실용적 영향은?,
-   * app_achievement_detail과 daily_achievement_rate가 보여주는 성과는?, ,
-
-실패 가능성과 그 결과 분석
-어떤 선택이 실패로 이어질 수 있었는가?,
-오늘의 실패가 목표 달성에 미칠 실질적 악영향은?,
-놓친 기회의 실제적 손실은 무엇인가?,
-coping_style이 실패에 어떤 미묘한 영향을 미칠 수 있었는가?, ,
-
-전환점과 선택의 실용성
-어떤 구체적 순간에서 성공과 실패가 갈라졌는가?,
-그 순간의 선택이 실제로 결과를 바꾸는 이유는?,
-작은 행동이 큰 차이를 만드는 메커니즘은?, ,
-
-스토리 구성과 재미 요소
-사용자의 개인적 특성(나이, 직업, 성격)을 어떻게 자연스럽게 반영할 것인가?,
-coping_style을 직접 언급하지 않고 행동과 사고 패턴으로 어떻게 보여줄 것인가?,
-흥미로운 상황이나 반전 요소를 어떻게 넣을 것인가?,
-독자가 몰입할 수 있는 구체적 장면은 무엇인가?,
-적절한 유머나 위트를 어떻게 포함시킬 것인가?,
-특히 실패 서사에서는 삶이 최종적으로 비극적 종말을 맞이한 상태를 이미 되어버린 현실처럼 생생히 묘사하여, 독자가 강렬한 좌절감과 경각심을 느낄 수 있도록 할 것., , </think> 
---- 2단계: 소설 작성 작성 지침
-총 분량: 1000~1400자,
-성공 서사: 500~700자, 구체적인 성취를 계속 이루었을 때의 압도적으로 긍정적인 미래 묘사,
-실패 서사: 500~700자, 작은 미루기가 반복되어 결국 삶이 완전히 붕괴되고 비극적으로 마무리된 상태를 이미 경험한 듯 묘사,
-시점: 1인칭,
-문체: 현실적이고 생생한 웹소설 톤,
-반드시 완료형(“~되었다 / ~였다”)으로 서술할 것.,
-반드시 소제목을 넣어 “성공한 하루” vs “실패한 하루”가 명확히 구분되도록 작성할 것.,
-마지막에 교훈이나 결론을 직접 쓰지 않는다. 이야기 자체가 독자에게 숨 막히는 절망과 경각심을 남겨야 한다.
+당신은 사용자의 스마트폰 사용 패턴을 기반으로 두 가지 대비되는 미래 시나리오를 작성하는 스토리텔러입니다.
 사용자 입력 데이터
-- long_term_goal: {$longTermGoal}
-- short_term_goal: {$shortTermGoal}
-- current_activities: {$todayTasks}
-- coping_style: {$selectedStyleAnswers}
-- app_achievement_detail: {$appAchievementDetail}
-- daily_achievement_rate: {$dailyAchievementRate}%
-- today_tasks: {$todayTasks}
+=== 기본 정보 ===
+- name: $name
+- age: $age
+- gender: $gender
+- job: $job
+
+=== 목표 및 활동 ===
+- long_term_goal(사용자의 장기적인 목표): $longTermGoal
+- short_term_goal(사용자의 단기적인 목표): $shortTermGoal
+- current_activities(현재 진행 중인 활동들): $currentActivities
+
+=== 성격/스타일 ===
+- coping_style(성격): $copingStyle
+
+=== 오늘의 달성률 ===
+- app_achievement_detail(앱별 목표시간/실제사용시간): $appAchievementDetail
+- daily_achievement_rate(전체 달성률): $dailyAchievementRate%
+- today_tasks(오늘 할 일 목록과 달성 여부): $todayTasks
+
+성공/실패 판단
+* 성공: 3개 앱 목표시간 모두 준수 → 앱 사용을 잘 조절한 결과로 찾아온 긍정적인 미래
+* 실패: 하나라도 초과 → 앱 사용을 조절하지 못했다면 벌어졌을 부정적 미래
+* 초과 정도(5분 vs 2시간)에 따라 시나리오 강도 조절
+
+**시나리오 구성**
+1. What you did: 실제 사용자의 행동 결과 시나리오
+   * 사용자가 실제로 성공했으면 긍정적 미래 작성
+   * 사용자가 실제로 실패했으면 부정적 미래 작성
+
+2. What if you didn't: 대안 행동의 결과를 보여주는 시나리오
+   * 실제 성공 → 대안은 실패 (부정적 미래)
+   * 실제 실패 → 대안은 성공 (긍정적 미래)
+   * "만약 ~했더라면?"이 아니라 그 결과를 직접적으로 보여주기
+
+**작성 원칙**
+* 주인공은 '나'로 설정 (1인칭 시점)
+* 충격적이고 자극적으로 작성 (사용자가 충격받을 정도로)
+* 매번 다른 소재와 레파토리 사용 (건강, 인간관계, 커리어, 돈, 사고, 우연한 기회 등 다양하게)
+* 중요: 과거/현재(어제, 오늘)의 일과는 절대 만들어내지 않음
+* 미래 시나리오 작성 시 "3개월 후, 1년 후" 같은 딱딱한 시간 표현 금지
+* 자연스럽게 시간이 흐르는 소설 형식으로 작성
+* 사용자 정보는 참고만 하고, 창의적인 미래 전개 가능
+* 할 일 미완성 때문에 나쁜 미래라는 단순 인과 지양
+* 과정은 현실적이고 공감 가능하게 (결론은 과장 가능)
+* 행동-결과의 대비가 명확하게
+
+**핵심 추가 요소: 시간의 시각화**
+* 부정적 시나리오에서는 무의미하게 소비된 시간의 누적 효과를 구체적으로 묘사
+* 예시: "하루 2시간씩 흘러간 시간들이 쌓여 수백 시간이 되었고..."
+* 숫자로 환산된 시간 손실을 생생하게 표현 (예: "한 달이면 60시간, 일주일치 시간")
+* 그 시간에 할 수 있었던 구체적인 일들을 대비시켜 보여주기
+* 손가락 스크롤 동작의 반복, 화면을 보는 자세의 누적 등 신체적 변화도 암시
+* "그 순간순간은 짧았지만, 모이고 모여..."와 같은 시간 누적의 무게감 강조
+* 긍정적 시나리오에서는 그 시간을 다른 곳에 투자했을 때의 가시적 성과 제시
+
+**출력 형식**
+각 시나리오는 정확히 750-850토큰 분량으로 작성하세요.
+## What you did (성공/실패)
+[시나리오 내용]
+## What if you didn't (실패/성공)
+[시나리오 내용]
 ''';
+  }
+
+  // 나이 계산 헬퍼 함수
+  String _calculateAge(UserProfile userProfile) {
+    if (userProfile.birthYear == null) return "정보 없음";
+
+    final currentYear = DateTime.now().year;
+    final age = currentYear - userProfile.birthYear!;
+    return "${age}세";
+  }
+
+  // 스타일 답변 포맷팅 헬퍼 함수
+  String _formatStyleAnswers(Map<String, List<String>>? styleAnswers) {
+    if (styleAnswers == null || styleAnswers.isEmpty) {
+      return "정보 없음";
+    }
+
+    final buffer = StringBuffer();
+    styleAnswers.forEach((question, answers) {
+      if (answers.isNotEmpty) {
+        buffer.write(answers.join(', '));
+        buffer.write(' / ');
+      }
+    });
+
+    String result = buffer.toString();
+    if (result.endsWith(' / ')) {
+      result = result.substring(0, result.length - 3);
+    }
+
+    return result.isEmpty ? "정보 없음" : result;
   }
 
   /// 특정 인덱스의 일기 삭제

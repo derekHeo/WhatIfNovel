@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/diary_model.dart';
+import '../models/inquiry_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -12,6 +13,7 @@ class FirestoreService {
   static const String _commentsCollection = 'comments';
   static const String _userProfilesCollection = 'user_profiles';
   static const String _appGoalsCollection = 'app_goals';
+  static const String _inquiriesCollection = 'inquiries';
 
   // ==================== Diary 관련 메서드 ====================
 
@@ -269,6 +271,25 @@ class FirestoreService {
       return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  // ==================== Inquiry 관련 메서드 ====================
+
+  /// 문의 사항 저장
+  Future<void> createInquiry(InquiryModel inquiry) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      await _firestore
+          .collection(_inquiriesCollection)
+          .doc(inquiry.id)
+          .set(inquiry.toMap());
+    } catch (e) {
+      throw Exception('문의 전송 실패: $e');
     }
   }
 }

@@ -52,7 +52,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       {'emoji': '🎯', 'text': '목표가 생기면 일단 해보는 스타일이에요'},
       {'emoji': '🛋', 'text': '미루는 버릇이 있고 자주 흐름 놓쳐요'},
     ],
-    '사고 인식/판성 경향': [
+    '사고 인식/판단 경향': [
       {'emoji': '🔍', 'text': '자주 스스로를 돌아보는 편이에요'},
       {'emoji': '🎭', 'text': '실수는 곧잘 넘기고 별로 깊게 안 파요'},
       {'emoji': '🧩', 'text': '머릿속 생각이 많고 자기반성이 깊어요'},
@@ -498,7 +498,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         return '감정이 생겼을 때, 나는 이렇게 반응해요.';
       case '행동 패턴':
         return '일상에서 나는 이런 방식으로 행동해요.';
-      case '사고 인식/판성 경향':
+      case '사고 인식/판단 경향':
         return '내 생각이나 신념을 바라보는 방식이에요.';
       case '관계 스타일':
         return '사람들과의 거리나 소통 방식이에요.';

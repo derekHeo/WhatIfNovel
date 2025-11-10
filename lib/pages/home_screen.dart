@@ -28,16 +28,29 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = false; // ✨ 로딩 상태 변수 추가
 
-  // --- 💡 새로운 UI를 위한 더미 데이터 💡 ---
-
-  // 중간 성공률 카드 데이터
-  final double overallSuccessRate = 1.0; // 전체 성공률 (100%)
-
-  // 하단 To-do 리스트 데이터
-  final List<Map<String, dynamic>> _todoList = [
-    {'text': '할일', 'isChecked': true},
-  ];
   final TextEditingController _todoInputController = TextEditingController();
+
+  // ✨ 성공률 계산 함수
+  double _calculateSuccessRate(List<AppGoal> goals) {
+    if (goals.isEmpty) return 1.0; // 앱이 없으면 100%
+
+    int totalApps = goals.length;
+    int exceededApps = 0;
+
+    for (var goal in goals) {
+      final goalTotalMinutes = goal.goalHours * 60 + goal.goalMinutes;
+      final usageTotalMinutes = (goal.usageHours * 60).toInt() + goal.usageMinutes;
+
+      // 목표 시간을 초과했는지 확인
+      if (goalTotalMinutes > 0 && usageTotalMinutes > goalTotalMinutes) {
+        exceededApps++;
+      }
+    }
+
+    // 100%에서 시작해서 초과한 앱당 (100/총앱개수)%씩 차감
+    double successRate = 1.0 - (exceededApps / totalApps);
+    return successRate.clamp(0.0, 1.0); // 0~1 사이 값으로 제한
+  }
 
   @override
   void dispose() {
@@ -165,6 +178,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ✨ 새로 추가된 성공률 카드 위젯
   Widget _buildSuccessRateCard(List<AppGoal> goals) {
+    final successRate = _calculateSuccessRate(goals);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       decoration: BoxDecoration(
@@ -185,7 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           LinearProgressIndicator(
-            value: overallSuccessRate,
+            value: successRate,
             minHeight: 10,
             borderRadius: BorderRadius.circular(5),
             backgroundColor: Colors.grey.shade200,
@@ -194,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 4),
           Align(
             alignment: Alignment.centerRight,
-            child: Text('${(overallSuccessRate * 100).toInt()}%',
+            child: Text('${(successRate * 100).toInt()}%',
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, color: Colors.blue)),
           ),
@@ -228,23 +243,29 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(
         children: [
-          Image.asset(goal.imagePath, width: 28, height: 28),
-          const SizedBox(width: 16),
+          // 앱 이름 텍스트 표시
+          SizedBox(
+            width: 80,
+            child: Text(
+              goal.name,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              overflow: TextOverflow.ellipsis, // 긴 이름은 ... 처리
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: LinearProgressIndicator(
               value: progress.clamp(0.0, 1.0), // 0과 1 사이 값으로 유지
-              // --- ✨ 이 부분이 채워졌습니다 ---
               minHeight: 10, // 프로그레스 바의 높이
               borderRadius: BorderRadius.circular(5), // 모서리를 둥글게
               backgroundColor: Colors.grey.shade200, // 배경색
               valueColor: AlwaysStoppedAnimation<Color>(barColor), // 목표 초과 시 빨간색
-              // ---------------------------
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           // ✨ 실제 사용시간과 목표시간을 동적으로 표시
           Text('${usageHoursPart}h ${usageMinutesPart}m / ${goal.goalHours}h ${goal.goalMinutes}m',
-              style: const TextStyle(fontSize: 14, color: Colors.grey)),
+              style: const TextStyle(fontSize: 12, color: Colors.grey)),
         ],
       ),
     );
@@ -267,10 +288,36 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('오늘의 스마트폰 사용시간 입력',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('오늘의 스마트폰 사용시간 입력',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              TextButton.icon(
+                onPressed: () => _showAddAppDialog(appGoalProvider),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('앱 추가'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.blue,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
-          ...appGoalProvider.goals.map((goal) => _buildUsageInputRow(goal, appGoalProvider)),
+          // 앱이 없을 때 안내 메시지
+          if (appGoalProvider.goals.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: Text(
+                  '추적할 앱을 추가해주세요',
+                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                ),
+              ),
+            )
+          else
+            ...appGoalProvider.goals.map((goal) => _buildUsageInputRow(goal, appGoalProvider)),
         ],
       ),
     );
@@ -282,15 +329,16 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(
         children: [
-          Image.asset(goal.imagePath, width: 32, height: 32),
-          const SizedBox(width: 16),
+          // 앱 아이콘 또는 기본 아이콘
+          _buildAppIcon(goal.imagePath),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(goal.name,
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
           ),
           // 시간 입력
           SizedBox(
-            width: 70,
+            width: 60,
             child: TextField(
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
@@ -305,10 +353,10 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           // 분 입력
           SizedBox(
-            width: 70,
+            width: 60,
             child: TextField(
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
@@ -322,6 +370,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 appGoalProvider.updateUsage(goal.name, goal.usageHours, minutes);
               },
             ),
+          ),
+          const SizedBox(width: 6),
+          // 삭제 버튼
+          IconButton(
+            icon: const Icon(Icons.close, size: 18),
+            color: Colors.grey,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: () => _showDeleteAppDialog(goal.name, appGoalProvider),
           ),
         ],
       ),
@@ -458,10 +515,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           goal.name: (goal.goalHours * 60 + goal.goalMinutes)
                       };
 
-                      // ✨ 실제 사용시간 데이터 (시간 + 분을 시간 단위로 변환)
-                      final Map<String, double> appUsage = {
+                      // ✨ 실제 사용시간 데이터 (분 단위로 변환)
+                      final Map<String, int> appUsage = {
                         for (var goal in goals)
-                          goal.name: goal.usageHours + (goal.usageMinutes / 60.0)
+                          goal.name: (goal.usageHours * 60).toInt() + goal.usageMinutes
                       };
 
                       // TodoProvider에서 todoList 가져오기
@@ -595,6 +652,138 @@ class _HomeScreenState extends State<HomeScreen> {
             isDefaultAction: true,
             child: const Text('확인'),
             onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✨ 앱 아이콘 또는 기본 아이콘 표시
+  Widget _buildAppIcon(String imagePath) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: imagePath == 'assets/images/default_app.png'
+          ? const Icon(Icons.apps, size: 20, color: Colors.grey)
+          : ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                imagePath,
+                width: 32,
+                height: 32,
+                errorBuilder: (context, error, stackTrace) {
+                  // 이미지 로드 실패 시 기본 아이콘 표시
+                  return const Icon(Icons.apps, size: 20, color: Colors.grey);
+                },
+              ),
+            ),
+    );
+  }
+
+  // ✨ 앱 삭제 확인 다이얼로그
+  void _showDeleteAppDialog(String appName, AppGoalProvider appGoalProvider) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('앱 삭제'),
+        content: Text('$appName을(를) 목록에서 삭제하시겠습니까?'),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            child: const Text('취소'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            child: const Text('삭제'),
+            onPressed: () async {
+              await appGoalProvider.deleteApp(appName);
+              if (mounted) {
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('$appName이(가) 삭제되었습니다')),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✨ 앱 추가 다이얼로그
+  void _showAddAppDialog(AppGoalProvider appGoalProvider) {
+    final TextEditingController appNameController = TextEditingController();
+
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('앱 추가'),
+        content: Column(
+          children: [
+            const SizedBox(height: 16),
+            const Text('관리할 앱/서비스 이름을 입력하세요'),
+            const SizedBox(height: 12),
+            CupertinoTextField(
+              controller: appNameController,
+              placeholder: '예: Instagram, TikTok, Netflix',
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            child: const Text('취소'),
+            onPressed: () {
+              appNameController.dispose();
+              Navigator.of(context).pop();
+            },
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: false,
+            child: const Text('추가'),
+            onPressed: () async {
+              final appName = appNameController.text.trim();
+              if (appName.isEmpty) {
+                // 입력이 비어있으면 아무것도 하지 않음
+                return;
+              }
+
+              try {
+                await appGoalProvider.addApp(appName);
+                appNameController.dispose();
+                if (mounted) {
+                  Navigator.of(context).pop();
+                  // 성공 메시지 (선택사항)
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('$appName이(가) 추가되었습니다')),
+                  );
+                }
+              } catch (e) {
+                // 에러 처리 (예: 중복 앱)
+                if (mounted) {
+                  Navigator.of(context).pop();
+                  showCupertinoDialog(
+                    context: context,
+                    builder: (context) => CupertinoAlertDialog(
+                      title: const Text('오류'),
+                      content: Text(e.toString().replaceAll('Exception: ', '')),
+                      actions: [
+                        CupertinoDialogAction(
+                          child: const Text('확인'),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              }
+            },
           ),
         ],
       ),

@@ -132,17 +132,25 @@ class _GoalSettingScreenState extends State<GoalSettingScreen> {
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(
         children: [
-          Image.asset(goal.imagePath, width: 28, height: 28),
-          const SizedBox(width: 16),
-          const Text('목표 시간:'),
+          // 앱 이름 텍스트로 표시
+          SizedBox(
+            width: 80,
+            child: Text(
+              goal.name,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Text('목표:'),
           const SizedBox(width: 8),
           _buildTimeInput(_controllers[goal.name]!['hours']!),
           const SizedBox(width: 4),
-          const Text('시간'),
+          const Text('h'),
           const SizedBox(width: 8),
           _buildTimeInput(_controllers[goal.name]!['minutes']!),
           const SizedBox(width: 4),
-          const Text('분'),
+          const Text('m'),
         ],
       ),
     );

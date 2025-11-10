@@ -267,19 +267,20 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
           const SizedBox(height: 16),
           ...appGoals.keys.map((appName) {
             final goalMinutes = appGoals[appName] as int?;
-            final usageHours = appUsage[appName] as double?;
+            final usageMinutes = appUsage[appName] as int?;
 
-            if (goalMinutes == null || usageHours == null)
+            if (goalMinutes == null || usageMinutes == null)
               return const SizedBox.shrink();
 
+            // 분을 시간과 분으로 변환
             final goalHours = goalMinutes ~/ 60;
             final goalMins = goalMinutes % 60;
-            final usageH = usageHours.toInt();
-            final usageM = ((usageHours - usageH) * 60).toInt();
+            final usageH = usageMinutes ~/ 60;
+            final usageM = usageMinutes % 60;
 
             // 목표 초과 여부를 먼저 계산
             final rawProgress = goalMinutes > 0
-                ? (usageHours * 60 / goalMinutes)
+                ? (usageMinutes / goalMinutes)
                 : 0.0;
             final isExceeded = rawProgress >= 1.0;
             final progress = rawProgress.clamp(0.0, 1.0);

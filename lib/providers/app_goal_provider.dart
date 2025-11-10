@@ -10,30 +10,8 @@ class AppGoalProvider with ChangeNotifier {
 
   bool _isLoading = false;
 
-  // 초기 기본 데이터 (Firestore에 데이터가 없을 때 사용)
-  List<AppGoal> _goals = [
-    AppGoal(
-        name: 'Instagram',
-        imagePath: 'assets/images/insta.png',
-        goalHours: 1,
-        goalMinutes: 0,
-        usageHours: 0.0,
-        usageMinutes: 30),
-    AppGoal(
-        name: 'YouTube',
-        imagePath: 'assets/images/youtube.png',
-        goalHours: 1,
-        goalMinutes: 0,
-        usageHours: 0.0,
-        usageMinutes: 30),
-    AppGoal(
-        name: 'KakaoTalk',
-        imagePath: 'assets/images/kakao.png',
-        goalHours: 1,
-        goalMinutes: 0,
-        usageHours: 0.0,
-        usageMinutes: 30),
-  ];
+  // 초기 기본 데이터 (Firestore에 데이터가 없을 때 빈 리스트로 시작)
+  List<AppGoal> _goals = [];
 
   List<AppGoal> get goals => _goals;
   bool get isLoading => _isLoading;
@@ -154,5 +132,35 @@ class AppGoalProvider with ChangeNotifier {
     int hours = totalHours.floor();
     int minutes = ((totalHours - hours) * 60).round();
     return '$hours시간 $minutes분';
+  }
+
+  /// 새로운 앱 추가 (사용자 커스텀 앱명)
+  Future<void> addApp(String appName) async {
+    // 중복 체크
+    if (_goals.any((goal) => goal.name.toLowerCase() == appName.toLowerCase())) {
+      throw Exception('이미 등록된 앱입니다.');
+    }
+
+    final newGoal = AppGoal(
+      name: appName,
+      imagePath: 'assets/images/default_app.png', // 기본 아이콘
+      goalHours: 1,
+      goalMinutes: 0,
+      usageHours: 0.0,
+      usageMinutes: 0,
+    );
+
+    _goals.add(newGoal);
+    notifyListeners();
+    await _saveGoals();
+    print('앱 추가 완료: $appName');
+  }
+
+  /// 앱 삭제
+  Future<void> deleteApp(String appName) async {
+    _goals.removeWhere((goal) => goal.name == appName);
+    notifyListeners();
+    await _saveGoals();
+    print('앱 삭제 완료: $appName');
   }
 }
