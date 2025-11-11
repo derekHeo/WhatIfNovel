@@ -13,17 +13,17 @@ class UserProfileProvider with ChangeNotifier {
   UserProfile get userProfile => _userProfile;
   bool get isLoading => _isLoading;
 
-  UserProfileProvider() {
-    _loadProfile();
-  }
+  // 생성자에서 자동 로드를 제거하여 race condition 방지
+  UserProfileProvider();
 
   Future<void> _loadProfile() async {
     final user = _auth.currentUser;
     if (user == null) {
-      print('프로필 로드: 로그인된 사용자가 없습니다.');
+      print('[UserProfileProvider] 프로필 로드: 로그인된 사용자가 없습니다.');
       return;
     }
 
+    print('[UserProfileProvider] 프로필 로드 시작: ${user.email}');
     _isLoading = true;
     notifyListeners();
 
@@ -37,10 +37,14 @@ class UserProfileProvider with ChangeNotifier {
 
       if (doc.exists && doc.data() != null) {
         _userProfile = UserProfile.fromMap(doc.data()!);
-        notifyListeners();
+        print('[UserProfileProvider] 프로필 로드 성공: ${_userProfile.name}');
+        print('[UserProfileProvider] 필수 프로필 존재 여부: $hasRequiredProfile');
+      } else {
+        print('[UserProfileProvider] Firestore에 프로필이 없습니다.');
+        _userProfile = UserProfile(name: '');
       }
     } catch (e) {
-      print('프로필 로드 에러: $e');
+      print('[UserProfileProvider] 프로필 로드 에러: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -185,5 +189,21 @@ class UserProfileProvider with ChangeNotifier {
       return '사용자 프로필: 정보 없음';
     }
     return _userProfile.toPromptText();
+  }
+
+  /// 프로필 필수 정보가 입력되었는지 확인
+  /// 필수 정보: 이름, 생년월일, 성별
+  bool get hasRequiredProfile {
+    return _userProfile.name.isNotEmpty &&
+        _userProfile.birthYear != null &&
+        _userProfile.birthMonth != null &&
+        _userProfile.birthDay != null &&
+        _userProfile.gender != null &&
+        _userProfile.gender!.isNotEmpty;
+  }
+
+  /// 프로필이 완전히 비어있는지 확인
+  bool get isProfileEmpty {
+    return _userProfile.isEmpty;
   }
 }

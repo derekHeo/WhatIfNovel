@@ -49,6 +49,13 @@ dependencies:
   fl_chart: ^0.64.0
   cloud_functions: ^5.6.2
 
+  # 인터랙티브 애니메이션 패키지
+  flutter_animate: ^4.5.0  # 간편한 위젯 애니메이션
+  flutter_staggered_animations: ^1.1.1  # 리스트 애니메이션
+  lottie: ^3.1.0  # 고품질 Lottie 애니메이션
+  shimmer: ^3.0.0  # 로딩 스켈레톤 효과
+  page_transition: ^2.1.0  # 페이지 전환 애니메이션
+
 
 dev_dependencies:
   flutter_test:

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
@@ -28,15 +29,34 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
   bool _isCommentSectionVisible = false;
   List<CommentModel> _comments = [];
 
+  // Next 버튼 타이머 관련 변수
+  int _remainingSeconds = 20;
+  Timer? _timer;
+
   @override
   void initState() {
     super.initState();
     _loadCurrentWeekNovels();
     print(widget.diary.content);
+    _startTimer();
+  }
+
+  /// 20초 타이머 시작
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_remainingSeconds > 0) {
+        setState(() {
+          _remainingSeconds--;
+        });
+      } else {
+        timer.cancel();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _scrollController.dispose();
     _commentScrollController.dispose();
     _commentController.dispose();
@@ -360,30 +380,39 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
   }
 
   Widget _buildNextButton(BuildContext context) {
+    final isEnabled = _remainingSeconds <= 0;
+    final buttonText = isEnabled
+        ? '목표설정 화면으로 이동'
+        : '${_remainingSeconds}초 뒤에 목표설정 화면으로 이동할 수 있습니다.';
+
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: ElevatedButton(
-        onPressed: () {
-          Navigator.pushReplacement(
-            context,
-            CupertinoPageRoute(builder: (context) => const GoalSettingScreen()),
-          );
-        },
+        onPressed: isEnabled
+            ? () {
+                Navigator.pushReplacement(
+                  context,
+                  CupertinoPageRoute(builder: (context) => const GoalSettingScreen()),
+                );
+              }
+            : null,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.blue,
+          backgroundColor: isEnabled ? Colors.blue : Colors.grey,
+          disabledBackgroundColor: Colors.grey.shade400,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           elevation: 0,
         ),
-        child: const Text(
-          'NEXT',
+        child: Text(
+          buttonText,
           style: TextStyle(
-            fontSize: 18,
+            fontSize: isEnabled ? 18 : 14,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
+          textAlign: TextAlign.center,
         ),
       ),
     );

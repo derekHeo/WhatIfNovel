@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../providers/diary_provider.dart';
 import '../models/diary_model.dart';
 import 'novel_detail_page.dart';
@@ -152,12 +153,23 @@ class _DiaryListPageState extends State<DiaryListPage> {
 
                 // 현재 주차의 기록들
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: currentWeekData.length,
-                    itemBuilder: (context, index) {
-                      final diary = currentWeekData[index];
-                      return _buildDiaryItem(context, diary);
-                    },
+                  child: AnimationLimiter(
+                    child: ListView.builder(
+                      itemCount: currentWeekData.length,
+                      itemBuilder: (context, index) {
+                        final diary = currentWeekData[index];
+                        return AnimationConfiguration.staggeredList(
+                          position: index,
+                          duration: const Duration(milliseconds: 375),
+                          child: SlideAnimation(
+                            verticalOffset: 50.0,
+                            child: FadeInAnimation(
+                              child: _buildDiaryItem(context, diary),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],

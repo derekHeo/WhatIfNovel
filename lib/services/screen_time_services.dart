@@ -1,12 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:novel_diary/models/screen_time_model.dart';
 
-/// iOS와 통신하여 스크린타임 데이터를 가져오는 서비스
+/// 플랫폼별 스크린타임 데이터를 가져오는 서비스
+/// iOS: Screen Time API
+/// Android: UsageStatsManager API
+/// Web: 지원하지 않음 (수동 입력만 가능)
 class ScreenTimeService {
-  // MethodChannel 이름 (iOS와 동일하게 설정)
+  // MethodChannel 이름
   static const MethodChannel _channel = MethodChannel('com.yourapp.screentime');
 
   // 싱글톤 패턴
@@ -14,22 +19,58 @@ class ScreenTimeService {
   factory ScreenTimeService() => _instance;
   ScreenTimeService._internal();
 
-  /// 스크린타임 권한 요청
-  /// iOS에서 Screen Time API 사용 권한을 요청합니다
-  Future<bool> requestScreenTimePermission() async {
+  /// 현재 플랫폼에서 Screen Time 기능이 지원되는지 확인
+  bool get isPlatformSupported {
+    if (kIsWeb) {
+      developer.log('웹 플랫폼은 Screen Time을 지원하지 않습니다', name: 'ScreenTimeService');
+      return false;
+    }
     try {
-      developer.log('스크린타임 권한 요청 시작', name: 'ScreenTimeService');
+      return Platform.isIOS || Platform.isAndroid;
+    } catch (e) {
+      developer.log('플랫폼 감지 실패: $e', name: 'ScreenTimeService');
+      return false;
+    }
+  }
+
+  /// 현재 플랫폼 타입 반환
+  String get platformType {
+    if (kIsWeb) return 'web';
+    try {
+      if (Platform.isIOS) return 'ios';
+      if (Platform.isAndroid) return 'android';
+      return 'unknown';
+    } catch (e) {
+      return 'unknown';
+    }
+  }
+
+  /// 스크린타임 권한 요청
+  /// iOS: Screen Time API 권한
+  /// Android: Usage Stats 권한
+  /// Web: 지원하지 않음
+  Future<bool> requestScreenTimePermission() async {
+    if (!isPlatformSupported) {
+      developer.log('현재 플랫폼($platformType)에서는 Screen Time을 지원하지 않습니다',
+          name: 'ScreenTimeService');
+      return false;
+    }
+
+    try {
+      developer.log('[$platformType] 스크린타임 권한 요청 시작', name: 'ScreenTimeService');
 
       final bool hasPermission =
           await _channel.invokeMethod('requestPermission');
 
-      developer.log('스크린타임 권한 결과: $hasPermission', name: 'ScreenTimeService');
+      developer.log('[$platformType] 스크린타임 권한 결과: $hasPermission',
+          name: 'ScreenTimeService');
       return hasPermission;
     } on PlatformException catch (e) {
-      developer.log('권한 요청 실패: ${e.message}', name: 'ScreenTimeService');
+      developer.log('[$platformType] 권한 요청 실패: ${e.message}',
+          name: 'ScreenTimeService');
       return false;
     } catch (e) {
-      developer.log('권한 요청 에러: $e', name: 'ScreenTimeService');
+      developer.log('[$platformType] 권한 요청 에러: $e', name: 'ScreenTimeService');
       return false;
     }
   }
@@ -50,29 +91,37 @@ class ScreenTimeService {
 
   /// 오늘의 스크린타임 데이터 가져오기
   Future<ScreenTimeSummary?> getTodayScreenTime() async {
+    if (!isPlatformSupported) {
+      developer.log('현재 플랫폼($platformType)에서는 Screen Time을 지원하지 않습니다',
+          name: 'ScreenTimeService');
+      return null;
+    }
+
     try {
-      developer.log('오늘의 스크린타임 데이터 요청', name: 'ScreenTimeService');
+      developer.log('[$platformType] 오늘의 스크린타임 데이터 요청', name: 'ScreenTimeService');
 
       final String? result = await _channel.invokeMethod('getTodayScreenTime');
 
       if (result == null) {
-        developer.log('스크린타임 데이터가 null입니다', name: 'ScreenTimeService');
+        developer.log('[$platformType] 스크린타임 데이터가 null입니다',
+            name: 'ScreenTimeService');
         return null;
       }
 
       final Map<String, dynamic> jsonData = json.decode(result);
       final summary = ScreenTimeSummary.fromJson(jsonData);
 
-      developer.log('스크린타임 데이터 파싱 완료: ${summary.appUsageList.length}개 앱',
+      developer.log('[$platformType] 스크린타임 데이터 파싱 완료: ${summary.appUsageList.length}개 앱',
           name: 'ScreenTimeService');
 
       return summary;
     } on PlatformException catch (e) {
-      developer.log('스크린타임 데이터 가져오기 실패: ${e.message}',
+      developer.log('[$platformType] 스크린타임 데이터 가져오기 실패: ${e.message}',
           name: 'ScreenTimeService');
       return null;
     } catch (e) {
-      developer.log('스크린타임 데이터 파싱 에러: $e', name: 'ScreenTimeService');
+      developer.log('[$platformType] 스크린타임 데이터 파싱 에러: $e',
+          name: 'ScreenTimeService');
       return null;
     }
   }
