@@ -12,6 +12,7 @@ import 'providers/comment_provider.dart';
 import 'providers/app_goal_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/todo_provider.dart';
+import 'providers/usage_stats_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +39,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => ScreenTimeProvider()),
         ChangeNotifierProvider(create: (context) => CommentProvider()),
         ChangeNotifierProvider(create: (context) => TodoProvider()),
+        ChangeNotifierProvider(create: (context) => UsageStatsProvider()),
       ],
       child: MaterialApp(
         title: 'What If',

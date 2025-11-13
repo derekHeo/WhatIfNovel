@@ -1,11 +1,15 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_profile_provider.dart';
 import '../providers/app_goal_provider.dart';
 import '../providers/todo_provider.dart';
+import '../services/android_usage_service.dart';
 import 'home_screen.dart';
+import 'onboarding_screen.dart';
 
 class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
@@ -18,16 +22,29 @@ class _StartScreenState extends State<StartScreen> {
   @override
   void initState() {
     super.initState();
-    // 이미 로그인된 사용자가 있으면 자동으로 홈 화면으로 이동
+    // 이미 로그인된 사용자가 있으면 자동으로 적절한 화면으로 이동
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.isLoggedIn) {
         // 로그인 상태일 때 프로필과 목표 데이터 로드
         await _loadUserData();
+
+        // 온보딩 완료 여부 체크
+        final prefs = await SharedPreferences.getInstance();
+        final onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
+
         if (mounted) {
-          Navigator.of(context).pushReplacement(
-            CupertinoPageRoute(builder: (context) => const HomeScreen()),
-          );
+          if (onboardingCompleted) {
+            // 온보딩 완료 → 홈 화면
+            Navigator.of(context).pushReplacement(
+              CupertinoPageRoute(builder: (context) => const HomeScreen()),
+            );
+          } else {
+            // 온보딩 미완료 → 온보딩 화면
+            Navigator.of(context).pushReplacement(
+              CupertinoPageRoute(builder: (context) => const OnboardingScreen()),
+            );
+          }
         }
       }
     });
@@ -48,6 +65,64 @@ class _StartScreenState extends State<StartScreen> {
     print('사용자 데이터 로드 완료');
   }
 
+  /// Android 앱 사용 통계 권한 최초 1회 요청
+  Future<void> _requestUsagePermissionIfNeeded() async {
+    // Android가 아니면 권한 요청 안 함
+    if (!Platform.isAndroid) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasAskedPermission = prefs.getBool('usage_permission_asked') ?? false;
+
+      // 이미 권한 요청했으면 스킵
+      if (hasAskedPermission) {
+        print('UsageStats 권한 이미 요청함');
+        return;
+      }
+
+      final usageService = AndroidUsageService();
+
+      // 현재 권한 상태 확인
+      final hasPermission = await usageService.checkUsagePermission();
+
+      if (!hasPermission && mounted) {
+        // 권한 요청 다이얼로그 표시
+        final shouldRequest = await showCupertinoDialog<bool>(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: const Text('앱 사용 통계 권한'),
+            content: const Text(
+              '사용하신 앱의 통계를 확인하기 위해 '
+              '앱 사용 기록 권한이 필요합니다.\n\n'
+              '설정 화면에서 권한을 허용해주세요.',
+            ),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('나중에'),
+                onPressed: () => Navigator.of(context).pop(false),
+              ),
+              CupertinoDialogAction(
+                isDefaultAction: true,
+                child: const Text('설정하기'),
+                onPressed: () => Navigator.of(context).pop(true),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldRequest == true) {
+          await usageService.requestUsagePermission();
+        }
+      }
+
+      // 권한 요청 완료 기록 (거부하더라도 다시 묻지 않음)
+      await prefs.setBool('usage_permission_asked', true);
+      print('UsageStats 권한 요청 완료');
+    } catch (e) {
+      print('UsageStats 권한 요청 에러: $e');
+    }
+  }
+
   Future<void> _handleGoogleSignIn() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
@@ -57,10 +132,22 @@ class _StartScreenState extends State<StartScreen> {
       // 로그인 성공 후 사용자 데이터 로드
       await _loadUserData();
 
+      // 온보딩 완료 여부 체크
+      final prefs = await SharedPreferences.getInstance();
+      final onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
+
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          CupertinoPageRoute(builder: (context) => const HomeScreen()),
-        );
+        if (onboardingCompleted) {
+          // 온보딩 완료 → 홈 화면
+          Navigator.of(context).pushReplacement(
+            CupertinoPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          // 온보딩 미완료 → 온보딩 화면
+          Navigator.of(context).pushReplacement(
+            CupertinoPageRoute(builder: (context) => const OnboardingScreen()),
+          );
+        }
       }
     } else if (authProvider.errorMessage != null && mounted) {
       // 에러 발생 시 알림 표시

@@ -270,7 +270,10 @@ class _DiaryListPageState extends State<DiaryListPage> {
       onTap: () {
         Navigator.of(context).push(
           CupertinoPageRoute(
-            builder: (context) => NovelDetailPage(diary: diary),
+            builder: (context) => NovelDetailPage(
+              diary: diary,
+              showNextButton: false,
+            ),
           ),
         );
       },

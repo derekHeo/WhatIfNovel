@@ -6,10 +6,22 @@ allprojects {
 }
 
 rootProject.buildDir = '../build'
+
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
+    
+    // afterEvaluate를 먼저
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                if (project.android.hasProperty('compileSdkVersion')) {
+                    project.android.compileSdkVersion = 36
+                }
+            }
+        }
+    }
+    
+    // evaluationDependsOn을 나중에
     project.evaluationDependsOn(':app')
 }
 

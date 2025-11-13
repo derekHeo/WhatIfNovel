@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 앱 사용 통계 조회 권한 -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+                     android:protectionLevel="signature|privileged|development|appop"/>
+
     <application
         android:label="novel_diary"
         android:name="${applicationName}"

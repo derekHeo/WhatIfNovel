@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'profile_edit_page.dart'; // 프로필 수정 페이지 import
 import 'start_screen.dart'; // 로그인 화면 import
-import '../providers/auth_provider.dart';
+import '../providers/auth_provider.dart' as custom_auth;
+import '../providers/app_goal_provider.dart';
 import '../services/firestore_service.dart';
 import '../models/inquiry_model.dart';
 
@@ -40,6 +42,9 @@ class SettingsScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
             child: Column(
               children: [
+                // ✨ 현재 로그인된 계정 표시
+                _buildAccountInfo(),
+                const SizedBox(height: 20),
                 // ✨ 새로운 UI를 위한 카드 위젯 호출
                 _buildSettingsCard(
                   title: '프로필 수정',
@@ -50,13 +55,6 @@ class SettingsScreen extends StatelessWidget {
                         builder: (context) => const ProfileEditPage(),
                       ),
                     );
-                  },
-                ),
-                _buildSettingsCard(
-                  title: '초기화 시간 설정',
-                  description: '휴대폰 사용시간이 초기화 되는 시간대를 변경할 수 있어요.',
-                  onTap: () {
-                    // TODO: 초기화 시간 설정 화면으로 이동
                   },
                 ),
                 _buildSettingsCard(
@@ -95,6 +93,58 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // ✨ 현재 로그인된 계정 정보 표시
+  Widget _buildAccountInfo() {
+    final user = FirebaseAuth.instance.currentUser;
+    final email = user?.email ?? '정보 없음';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 6,
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.account_circle, size: 24, color: Colors.blue.shade600),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '현재 로그인된 계정',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  email,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -179,7 +229,7 @@ class SettingsScreen extends StatelessWidget {
                 Navigator.of(dialogContext).pop(); // 다이얼로그 닫기
 
                 // AuthProvider를 통해 로그아웃
-                final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                final authProvider = Provider.of<custom_auth.AuthProvider>(context, listen: false);
                 await authProvider.signOut();
 
                 // 로그인 화면으로 이동 (모든 스택 제거)
@@ -257,7 +307,7 @@ class SettingsScreen extends StatelessWidget {
 
                 try {
                   // 현재 사용자 ID 가져오기
-                  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                  final authProvider = Provider.of<custom_auth.AuthProvider>(context, listen: false);
                   final userId = authProvider.userId ?? 'unknown';
 
                   // 문의 모델 생성

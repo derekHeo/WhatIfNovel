@@ -9,8 +9,13 @@ import 'goal_setting_screen.dart';
 
 class NovelDetailPage extends StatefulWidget {
   final DiaryModel diary;
+  final bool showNextButton;
 
-  const NovelDetailPage({super.key, required this.diary});
+  const NovelDetailPage({
+    super.key,
+    required this.diary,
+    this.showNextButton = false,
+  });
 
   @override
   State<NovelDetailPage> createState() => _NovelDetailPageState();
@@ -125,8 +130,8 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                               fontSize: 16, color: Colors.black, height: 1.6),
                         ),
                         const SizedBox(height: 50),
-                        _buildNextButton(context),
-                        const SizedBox(height: 50),
+                        if (widget.showNextButton) _buildNextButton(context),
+                        if (widget.showNextButton) const SizedBox(height: 50),
                       ],
                     ),
                   ),
@@ -621,7 +626,10 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
       final previousNovel = _currentWeekNovels[_currentIndex - 1];
       Navigator.of(context).pushReplacement(
         CupertinoPageRoute(
-            builder: (context) => NovelDetailPage(diary: previousNovel)),
+            builder: (context) => NovelDetailPage(
+                  diary: previousNovel,
+                  showNextButton: widget.showNextButton,
+                )),
       );
     }
   }
@@ -631,7 +639,10 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
       final nextNovel = _currentWeekNovels[_currentIndex + 1];
       Navigator.of(context).pushReplacement(
         CupertinoPageRoute(
-            builder: (context) => NovelDetailPage(diary: nextNovel)),
+            builder: (context) => NovelDetailPage(
+                  diary: nextNovel,
+                  showNextButton: widget.showNextButton,
+                )),
       );
     }
   }
@@ -684,8 +695,10 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                       if (!isCurrentNovel) {
                         Navigator.of(context).pushReplacement(
                           CupertinoPageRoute(
-                              builder: (context) =>
-                                  NovelDetailPage(diary: novel)),
+                              builder: (context) => NovelDetailPage(
+                                    diary: novel,
+                                    showNextButton: widget.showNextButton,
+                                  )),
                         );
                       }
                     },

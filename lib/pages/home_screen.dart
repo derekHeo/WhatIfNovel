@@ -7,7 +7,10 @@ import '../providers/diary_provider.dart';
 import '../pages/novel_detail_page.dart';
 import '../providers/app_goal_provider.dart';
 import '../providers/todo_provider.dart';
+import '../providers/usage_stats_provider.dart';
 import '../models/app_goal_model.dart';
+import '../widgets/usage_chart_widget.dart';
+import '../widgets/loading_dialog.dart';
 
 // import 'package:provider/provider.dart';
 // import '../providers/diary_provider.dart';
@@ -29,6 +32,22 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = false; // ✨ 로딩 상태 변수 추가
 
   final TextEditingController _todoInputController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // 사용량 통계 로드
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final usageStatsProvider = Provider.of<UsageStatsProvider>(context, listen: false);
+      final appGoalProvider = Provider.of<AppGoalProvider>(context, listen: false);
+
+      // UsageStats 데이터 로드
+      await Future.wait([
+        usageStatsProvider.loadUsageStats(),
+        appGoalProvider.syncAllUsageData(), // 오늘/어제 사용량 동기화 (날짜 변경 감지 포함)
+      ]);
+    });
+  }
 
   // ✨ 성공률 계산 함수
   double _calculateSuccessRate(List<AppGoal> goals) {
@@ -83,12 +102,9 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 16),
-              // 상단 스크린 타임 차트 카드 (기존과 동일)
-              _buildScreenTimeChartCard(appGoalProvider),
-              const SizedBox(height: 24),
-              // ✨ 사용시간 입력 카드
-              _buildUsageInputCard(appGoalProvider),
-              const SizedBox(height: 24),
+              // ✨ 사용시간 입력 카드 (주석처리 - 더 이상 사용하지 않음)
+              // _buildUsageInputCard(appGoalProvider),
+              // const SizedBox(height: 24),
               // ✨ 새로 추가된 중간 성공률 카드
               _buildSuccessRateCard(appGoalProvider.goals),
               const SizedBox(height: 24),
@@ -176,10 +192,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ✨ 새로 추가된 성공률 카드 위젯
+  // ✨ 목표 대비 사용량 카드 위젯
   Widget _buildSuccessRateCard(List<AppGoal> goals) {
-    final successRate = _calculateSuccessRate(goals);
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       decoration: BoxDecoration(
@@ -195,77 +209,114 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 전체 성공률
-          const Text('성공률',
+          // 제목
+          const Text('목표 대비 사용량',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          LinearProgressIndicator(
-            value: successRate,
-            minHeight: 10,
-            borderRadius: BorderRadius.circular(5),
-            backgroundColor: Colors.grey.shade200,
-            valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+          Text(
+            '어제 데이터 기반 (What If 생성에 사용됩니다)',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
-          const SizedBox(height: 4),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text('${(successRate * 100).toInt()}%',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, color: Colors.blue)),
-          ),
-          const SizedBox(height: 24),
-          // 앱별 사용량
-          ...goals.map((goal) => _buildAppUsageRow(goal)),
+          const SizedBox(height: 20),
+          // 앱이 없을 때
+          if (goals.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: Text(
+                  '등록된 앱이 없습니다',
+                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                ),
+              ),
+            )
+          else
+            // 앱별 목표 대비 사용량 바 그래프
+            ...goals.map((goal) => _buildGoalVsUsageBar(goal)),
         ],
       ),
     );
   }
 
-  // home_screen.dart 또는 goal_setting_screen.dart에 포함될 함수
+  // 목표 대비 사용량 바 그래프
+  Widget _buildGoalVsUsageBar(AppGoal goal) {
+    // 목표 시간 (분)
+    final goalMinutes = (goal.goalHours * 60) + goal.goalMinutes;
+    // 실제 사용 시간 (분, 어제 데이터)
+    final usageMinutes = (goal.yesterdayUsageHours * 60).toInt() + goal.yesterdayUsageMinutes;
 
-  Widget _buildAppUsageRow(AppGoal goal) {
-    // 목표 시간과 사용 시간을 분 단위로 변환하여 진행률 계산
-    final goalTotalMinutes = goal.goalHours * 60 + goal.goalMinutes;
-    final usageTotalMinutes = (goal.usageHours * 60).toInt() + goal.usageMinutes;
-    // 목표가 0일 경우를 대비하여 분모가 0이 되지 않도록 처리
-    final progress =
-        goalTotalMinutes > 0 ? (usageTotalMinutes / goalTotalMinutes) : 0.0;
-
-    // 목표 초과 여부에 따라 색상 결정
-    final isExceeded = progress >= 1.0;
-    final barColor = isExceeded ? Colors.red : Colors.blue;
-
-    // 사용시간을 시간과 분으로 분리하여 표시
-    final usageHoursPart = goal.usageHours.toInt();
-    final usageMinutesPart = goal.usageMinutes;
+    // 비율 계산
+    final double percentage = goalMinutes > 0 ? (usageMinutes / goalMinutes) : 0.0;
+    final bool isExceeded = usageMinutes > goalMinutes;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: Row(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 앱 이름 텍스트 표시
-          SizedBox(
-            width: 80,
-            child: Text(
-              goal.name,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-              overflow: TextOverflow.ellipsis, // 긴 이름은 ... 처리
+          // 앱 이름 & 시간
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                goal.name,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              Text(
+                '${usageMinutes ~/ 60}h ${usageMinutes % 60}m / ${goalMinutes ~/ 60}h ${goalMinutes % 60}m',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isExceeded ? Colors.red : Colors.blue,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // 바 그래프
+          Stack(
+            children: [
+              // 배경 (전체 목표)
+              Container(
+                height: 8,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              // 실제 사용량
+              FractionallySizedBox(
+                widthFactor: (percentage).clamp(0.0, 1.0),
+                child: Container(
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: isExceeded ? Colors.red : Colors.blue,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              // 목표 초과 시 추가 바
+              if (isExceeded)
+                FractionallySizedBox(
+                  widthFactor: 1.0,
+                  child: Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // 퍼센트 표시
+          Text(
+            '${(percentage * 100).toStringAsFixed(0)}%',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade600,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: LinearProgressIndicator(
-              value: progress.clamp(0.0, 1.0), // 0과 1 사이 값으로 유지
-              minHeight: 10, // 프로그레스 바의 높이
-              borderRadius: BorderRadius.circular(5), // 모서리를 둥글게
-              backgroundColor: Colors.grey.shade200, // 배경색
-              valueColor: AlwaysStoppedAnimation<Color>(barColor), // 목표 초과 시 빨간색
-            ),
-          ),
-          const SizedBox(width: 12),
-          // ✨ 실제 사용시간과 목표시간을 동적으로 표시
-          Text('${usageHoursPart}h ${usageMinutesPart}m / ${goal.goalHours}h ${goal.goalMinutes}m',
-              style: const TextStyle(fontSize: 12, color: Colors.grey)),
         ],
       ),
     );
@@ -496,7 +547,7 @@ class _HomeScreenState extends State<HomeScreen> {
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-            // ✨ onPressed 로직을 비동기로 수정
+            // ✨ 새로운 로딩 다이얼로그를 사용한 로직
             onPressed: _isLoading
                 ? null
                 : () async {
@@ -504,45 +555,81 @@ class _HomeScreenState extends State<HomeScreen> {
                       _isLoading = true;
                     });
 
-                    try {
-                      // ✨ AppGoalProvider에서 실제 데이터를 가져옴
-                      final appGoalProvider = Provider.of<AppGoalProvider>(context, listen: false);
-                      final goals = appGoalProvider.goals;
+                    // API 호출 결과를 저장할 변수
+                    bool apiCompleted = false;
+                    bool apiSuccess = false;
+                    String? apiError;
 
-                      // 홈 화면의 데이터를 Provider가 요구하는 형식으로 가공
-                      final Map<String, int?> appGoals = {
-                        for (var goal in goals)
-                          goal.name: (goal.goalHours * 60 + goal.goalMinutes)
-                      };
+                    // ✨ AppGoalProvider에서 실제 데이터를 가져옴
+                    final appGoalProvider = Provider.of<AppGoalProvider>(context, listen: false);
+                    final goals = appGoalProvider.goals;
 
-                      // ✨ 실제 사용시간 데이터 (분 단위로 변환)
-                      final Map<String, int> appUsage = {
-                        for (var goal in goals)
-                          goal.name: (goal.usageHours * 60).toInt() + goal.usageMinutes
-                      };
+                    // 홈 화면의 데이터를 Provider가 요구하는 형식으로 가공
+                    // 목표는 임의로 설정 (What If 시나리오용, 실제 목표는 이후 설정)
+                    final Map<String, int?> appGoals = {
+                      for (var goal in goals)
+                        goal.name: (goal.goalHours * 60 + goal.goalMinutes)
+                    };
 
-                      // TodoProvider에서 todoList 가져오기
-                      final todoProvider = Provider.of<TodoProvider>(context, listen: false);
-                      final todoList = todoProvider.todos;
+                    // ✨ 어제 실제 사용시간 데이터 (분 단위로 변환)
+                    final Map<String, int> appUsage = {
+                      for (var goal in goals)
+                        goal.name: (goal.yesterdayUsageHours * 60).toInt() + goal.yesterdayUsageMinutes
+                    };
 
-                      // DiaryProvider 호출
-                      await Provider.of<DiaryProvider>(context, listen: false)
-                          .generateGoalBasedNovel(
+                    // TodoProvider에서 todoList 가져오기
+                    final todoProvider = Provider.of<TodoProvider>(context, listen: false);
+                    final todoList = todoProvider.todos;
+
+                    // API 호출을 백그라운드에서 시작
+                    Provider.of<DiaryProvider>(context, listen: false)
+                        .generateGoalBasedNovel(
+                      context: context,
+                      appGoals: appGoals,
+                      todoList: todoList,
+                      appUsage: appUsage,
+                    ).then((_) {
+                      apiCompleted = true;
+                      apiSuccess = true;
+                    }).catchError((e) {
+                      apiCompleted = true;
+                      apiSuccess = false;
+                      apiError = e.toString();
+                    });
+
+                    // 로딩 다이얼로그 표시
+                    if (mounted) {
+                      showDialog(
                         context: context,
-                        appGoals: appGoals,
-                        todoList: todoList,
-                        appUsage: appUsage,
-                      );
+                        barrierDismissible: false,
+                        builder: (BuildContext dialogContext) {
+                          return AIGenerationLoadingDialog(
+                            onComplete: () async {
+                              // 다이얼로그가 100%에 도달했을 때
+                              // API 호출이 완료될 때까지 대기
+                              while (!apiCompleted) {
+                                await Future.delayed(const Duration(milliseconds: 500));
+                              }
 
-                      _showSuccessDialog(); // 성공 시 알림창
-                    } catch (e) {
-                      _showErrorDialog(e.toString()); // 실패 시 알림창
-                    } finally {
-                      if (mounted) {
-                        setState(() {
-                          _isLoading = false;
-                        });
-                      }
+                              // 다이얼로그 닫기
+                              if (mounted) {
+                                Navigator.of(dialogContext).pop();
+
+                                setState(() {
+                                  _isLoading = false;
+                                });
+
+                                // API 결과에 따라 성공/실패 다이얼로그 표시
+                                if (apiSuccess) {
+                                  _showSuccessDialog();
+                                } else {
+                                  _showErrorDialog(apiError ?? '알 수 없는 오류');
+                                }
+                              }
+                            },
+                          );
+                        },
+                      );
                     }
                   },
             style: ElevatedButton.styleFrom(
@@ -550,21 +637,11 @@ class _HomeScreenState extends State<HomeScreen> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
-            // ✨ 로딩 상태에 따라 다른 위젯을 보여주도록 child 수정
-            child: _isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 3,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text('What if ?!',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white)),
+            child: const Text('What if ?!',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white)),
           ),
         ),
         const SizedBox(height: 12),
@@ -631,7 +708,10 @@ class _HomeScreenState extends State<HomeScreen> {
               // ✨ 이 부분의 주석을 해제하고 완성합니다.
               Navigator.of(context).push(
                 CupertinoPageRoute(
-                  builder: (context) => NovelDetailPage(diary: lastNovel),
+                  builder: (context) => NovelDetailPage(
+                    diary: lastNovel,
+                    showNextButton: true,
+                  ),
                 ),
               );
             },
