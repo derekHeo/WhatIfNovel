@@ -4,6 +4,25 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class ClaudeService {
+  /// UTF-8 문자열 정제 - 잘못된 인코딩 제거
+  static String _sanitizeUtf8(String text) {
+    try {
+      // UTF-8로 재인코딩/디코딩하여 잘못된 문자 제거
+      final bytes = utf8.encode(text);
+      final cleaned = utf8.decode(bytes, allowMalformed: true);
+
+      // REPLACEMENT CHARACTER (U+FFFD) 제거
+      final sanitized = cleaned.replaceAll('\uFFFD', '');
+
+      print('UTF-8 정제 완료. 원본: ${text.length}자 → 정제 후: ${sanitized.length}자');
+      return sanitized;
+    } catch (e) {
+      print('UTF-8 정제 중 오류: $e');
+      // 오류 발생 시 원본 반환
+      return text;
+    }
+  }
+
   /// <think> 태그 내용을 제거하고 실제 스토리 내용만 추출
   static String _removeThinkTags(String text) {
     // </think> 태그의 위치를 찾음
@@ -71,15 +90,22 @@ class ClaudeService {
         throw Exception('서버로부터 유효한 응답을 받지 못했습니다.');
       }
 
-      // <think> 태그 제거 후 반환
+      // <think> 태그 제거
       final cleanedResult = _removeThinkTags(result.toString());
 
       if (cleanedResult.isEmpty) {
         throw Exception('Think 태그 제거 후 내용이 비어있습니다.');
       }
 
-      print('최종 반환 문자열 길이: ${cleanedResult.length}');
-      return cleanedResult;
+      // UTF-8 정제 - 잘못된 인코딩 제거
+      final sanitizedResult = _sanitizeUtf8(cleanedResult);
+
+      if (sanitizedResult.isEmpty) {
+        throw Exception('UTF-8 정제 후 내용이 비어있습니다.');
+      }
+
+      print('최종 반환 문자열 길이: ${sanitizedResult.length}');
+      return sanitizedResult;
     } catch (e) {
       print('HTTP 요청 중 오류 발생: $e');
       print('오류 타입: ${e.runtimeType}');
