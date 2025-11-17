@@ -177,44 +177,45 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: _toggleCommentSection,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            child: Stack(
-                              children: [
-                                Icon(
-                                  Icons.chat_bubble_outline,
-                                  color: _isCommentSectionVisible
-                                      ? const Color(0xFF007AFF)
-                                      : Colors.black54,
-                                  size: 24,
-                                ),
-                                if (_comments.isNotEmpty)
-                                  Positioned(
-                                    right: 0,
-                                    top: 0,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(2),
-                                      decoration: const BoxDecoration(
-                                          color: Colors.red,
-                                          shape: BoxShape.circle),
-                                      constraints: const BoxConstraints(
-                                          minWidth: 16, minHeight: 16),
-                                      child: Text(
-                                        '${_comments.length}',
-                                        style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        // 댓글 버튼 비활성화
+                        // GestureDetector(
+                        //   onTap: _toggleCommentSection,
+                        //   child: Container(
+                        //     padding: const EdgeInsets.all(8),
+                        //     child: Stack(
+                        //       children: [
+                        //         Icon(
+                        //           Icons.chat_bubble_outline,
+                        //           color: _isCommentSectionVisible
+                        //               ? const Color(0xFF007AFF)
+                        //               : Colors.black54,
+                        //           size: 24,
+                        //         ),
+                        //         if (_comments.isNotEmpty)
+                        //           Positioned(
+                        //             right: 0,
+                        //             top: 0,
+                        //             child: Container(
+                        //               padding: const EdgeInsets.all(2),
+                        //               decoration: const BoxDecoration(
+                        //                   color: Colors.red,
+                        //                   shape: BoxShape.circle),
+                        //               constraints: const BoxConstraints(
+                        //                   minWidth: 16, minHeight: 16),
+                        //               child: Text(
+                        //                 '${_comments.length}',
+                        //                 style: const TextStyle(
+                        //                     color: Colors.white,
+                        //                     fontSize: 10,
+                        //                     fontWeight: FontWeight.bold),
+                        //                 textAlign: TextAlign.center,
+                        //               ),
+                        //             ),
+                        //           ),
+                        //       ],
+                        //     ),
+                        //   ),
+                        // ),
                       ],
                     ),
                     Row(

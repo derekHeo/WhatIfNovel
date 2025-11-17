@@ -1,6 +1,7 @@
 // pages/goal_setting_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_goal_provider.dart';
 import '../providers/todo_provider.dart';
@@ -60,6 +61,22 @@ class _GoalSettingScreenState extends State<GoalSettingScreen> {
       final controllers = entry.value;
       final hours = int.tryParse(controllers['hours']!.text) ?? 0;
       final minutes = int.tryParse(controllers['minutes']!.text) ?? 0;
+
+      // 시간과 분이 모두 0인 경우 체크
+      final totalMinutes = hours * 60 + minutes;
+      if (totalMinutes == 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$appName의 목표 시간은 최소 1분 이상이어야 합니다'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+        return; // 저장 중단
+      }
+
       await appGoalProvider.updateGoal(appName, hours, minutes);
     }
 
@@ -347,6 +364,9 @@ class _GoalSettingScreenState extends State<GoalSettingScreen> {
         controller: controller,
         textAlign: TextAlign.center,
         keyboardType: TextInputType.number,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly, // 숫자만 입력 가능
+        ],
         decoration: InputDecoration(
           contentPadding: EdgeInsets.zero,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),

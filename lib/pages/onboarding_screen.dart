@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/app_goal_provider.dart';
@@ -14,7 +15,7 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBindingObserver {
   int _currentStep = 0; // 0: 환영, 1: 권한, 2: 앱 선택 & 목표 설정
   bool _hasPermission = false;
   late Map<String, Map<String, TextEditingController>> _controllers;
@@ -22,6 +23,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkPermission();
     final goals = Provider.of<AppGoalProvider>(context, listen: false).goals;
     _controllers = {
@@ -35,6 +37,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controllers.forEach((_, value) {
       value['hours']!.dispose();
       value['minutes']!.dispose();
@@ -42,27 +45,31 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // 앱이 포그라운드로 돌아올 때 권한 상태 다시 확인
+    if (state == AppLifecycleState.resumed && _currentStep == 1) {
+      _checkPermission();
+    }
+  }
+
   Future<void> _checkPermission() async {
     final usageService = AndroidUsageService();
     final hasPermission = await usageService.checkUsagePermission();
     setState(() {
       _hasPermission = hasPermission;
+      // 권한이 허용되고 권한 단계에 있다면 자동으로 다음 단계로
+      if (_hasPermission && _currentStep == 1) {
+        _currentStep = 2;
+      }
     });
   }
 
   Future<void> _requestPermission() async {
     final usageService = AndroidUsageService();
     await usageService.requestUsagePermission();
-
-    // 권한 요청 후 다시 확인
-    await Future.delayed(const Duration(seconds: 1));
-    await _checkPermission();
-
-    if (_hasPermission) {
-      setState(() {
-        _currentStep = 2; // 앱 선택 단계로
-      });
-    }
+    // 앱이 포그라운드로 돌아올 때 didChangeAppLifecycleState에서 자동으로 권한 확인
   }
 
   void _showAppSelector() {
@@ -93,6 +100,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       final controllers = entry.value;
       final hours = int.tryParse(controllers['hours']!.text) ?? 0;
       final minutes = int.tryParse(controllers['minutes']!.text) ?? 0;
+
+      // 시간과 분이 모두 0인 경우 체크
+      final totalMinutes = hours * 60 + minutes;
+      if (totalMinutes == 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$appName의 목표 시간은 최소 1분 이상이어야 합니다'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+        return; // 저장 중단
+      }
+
       await appGoalProvider.updateGoal(appName, hours, minutes);
     }
 
@@ -363,27 +386,57 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(
         children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              goal.name,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-              overflow: TextOverflow.ellipsis,
+          Expanded(
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 100,
+                  child: Text(
+                    goal.name,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text('목표:'),
+                const SizedBox(width: 8),
+                _buildTimeInput(_controllers[goal.name]!['hours']!),
+                const SizedBox(width: 4),
+                const Text('h'),
+                const SizedBox(width: 8),
+                _buildTimeInput(_controllers[goal.name]!['minutes']!),
+                const SizedBox(width: 4),
+                const Text('m'),
+              ],
             ),
           ),
-          const SizedBox(width: 12),
-          const Text('목표:'),
-          const SizedBox(width: 8),
-          _buildTimeInput(_controllers[goal.name]!['hours']!),
-          const SizedBox(width: 4),
-          const Text('h'),
-          const SizedBox(width: 8),
-          _buildTimeInput(_controllers[goal.name]!['minutes']!),
-          const SizedBox(width: 4),
-          const Text('m'),
+          IconButton(
+            icon: const Icon(Icons.close, size: 20, color: Colors.red),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: () => _deleteApp(goal.name),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _deleteApp(String appName) async {
+    final appGoalProvider = Provider.of<AppGoalProvider>(context, listen: false);
+
+    // 컨트롤러 제거
+    if (_controllers.containsKey(appName)) {
+      _controllers[appName]!['hours']!.dispose();
+      _controllers[appName]!['minutes']!.dispose();
+      _controllers.remove(appName);
+    }
+
+    // Provider에서 삭제
+    await appGoalProvider.deleteApp(appName);
+
+    setState(() {
+      // UI 업데이트
+    });
   }
 
   Widget _buildTimeInput(TextEditingController controller) {
@@ -394,6 +447,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         controller: controller,
         textAlign: TextAlign.center,
         keyboardType: TextInputType.number,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly, // 숫자만 입력 가능
+        ],
         decoration: InputDecoration(
           contentPadding: EdgeInsets.zero,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
