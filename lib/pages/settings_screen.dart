@@ -14,8 +14,6 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-
     return Scaffold(
       // ✨ 배경색을 디자인에 맞게 변경
       backgroundColor: const Color(0xFFFDFBFA),
@@ -37,22 +35,6 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-        actions: [
-          if (authProvider.userEmail != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: Center(
-                child: Text(
-                  authProvider.userEmail!,
-                  style: const TextStyle(
-                    color: Colors.black87,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(

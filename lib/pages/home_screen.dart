@@ -1,23 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:page_transition/page_transition.dart';
 import 'diary_list_page.dart';
 import 'settings_screen.dart';
-import 'profile_edit_page.dart';
 import 'package:provider/provider.dart';
 import '../providers/diary_provider.dart';
 import '../pages/novel_detail_page.dart';
 import '../providers/app_goal_provider.dart';
 import '../providers/todo_provider.dart';
-<<<<<<< HEAD
 import '../providers/usage_stats_provider.dart';
 import '../models/app_goal_model.dart';
 import '../widgets/usage_chart_widget.dart';
-=======
-import '../providers/user_profile_provider.dart';
-import '../models/app_goal_model.dart';
->>>>>>> 7519f368d92fb58f1a71ac4e849afe5556645bef
 import '../widgets/loading_dialog.dart';
 
 // import 'package:provider/provider.dart';
@@ -38,9 +30,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = false; // ✨ 로딩 상태 변수 추가
-  bool _apiCompleted = false; // API 완료 여부
-  bool _hasError = false; // 에러 발생 여부
-  String? _errorMessage; // 에러 메시지
 
   final TextEditingController _todoInputController = TextEditingController();
 
@@ -101,11 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onPressed: () {
             Navigator.push(
               context,
-              PageTransition(
-                type: PageTransitionType.leftToRight,
-                child: const SettingsScreen(),
-                duration: const Duration(milliseconds: 300),
-              ),
+              CupertinoPageRoute(builder: (context) => const SettingsScreen()),
             );
           },
         ),
@@ -117,41 +102,17 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 16),
-<<<<<<< HEAD
               // ✨ 사용시간 입력 카드 (주석처리 - 더 이상 사용하지 않음)
               // _buildUsageInputCard(appGoalProvider),
               // const SizedBox(height: 24),
-=======
-              // 상단 스크린 타임 차트 카드 (기존과 동일)
-              _buildScreenTimeChartCard(appGoalProvider)
-                  .animate()
-                  .fadeIn(duration: 500.ms)
-                  .slideY(begin: 0.2, end: 0),
-              const SizedBox(height: 24),
-              // ✨ 사용시간 입력 카드
-              _buildUsageInputCard(appGoalProvider)
-                  .animate()
-                  .fadeIn(duration: 500.ms, delay: 100.ms)
-                  .slideY(begin: 0.2, end: 0),
-              const SizedBox(height: 24),
->>>>>>> 7519f368d92fb58f1a71ac4e849afe5556645bef
               // ✨ 새로 추가된 중간 성공률 카드
-              _buildSuccessRateCard(appGoalProvider.goals)
-                  .animate()
-                  .fadeIn(duration: 500.ms, delay: 200.ms)
-                  .slideY(begin: 0.2, end: 0),
+              _buildSuccessRateCard(appGoalProvider.goals),
               const SizedBox(height: 24),
               // ✨ 새로 추가된 하단 To-do 리스트 카드
-              _buildTodoListCard()
-                  .animate()
-                  .fadeIn(duration: 500.ms, delay: 300.ms)
-                  .slideY(begin: 0.2, end: 0),
+              _buildTodoListCard(),
               const SizedBox(height: 32),
               // ✨ 변경된 하단 버튼 영역
-              _buildBottomButtons()
-                  .animate()
-                  .fadeIn(duration: 500.ms, delay: 400.ms)
-                  .slideY(begin: 0.2, end: 0),
+              _buildBottomButtons(),
               const SizedBox(height: 40),
             ],
           ),
@@ -283,27 +244,9 @@ class _HomeScreenState extends State<HomeScreen> {
     // 실제 사용 시간 (분, 어제 데이터)
     final usageMinutes = (goal.yesterdayUsageHours * 60).toInt() + goal.yesterdayUsageMinutes;
 
-<<<<<<< HEAD
     // 비율 계산
     final double percentage = goalMinutes > 0 ? (usageMinutes / goalMinutes) : 0.0;
     final bool isExceeded = usageMinutes > goalMinutes;
-=======
-  Widget _buildAppUsageRow(AppGoal goal) {
-    // 목표 시간과 사용 시간을 분 단위로 변환하여 진행률 계산
-    final goalTotalMinutes = goal.goalHours * 60 + goal.goalMinutes;
-    final usageTotalMinutes = (goal.usageHours * 60).toInt() + goal.usageMinutes;
-    // 목표가 0일 경우를 대비하여 분모가 0이 되지 않도록 처리
-    final progress =
-        goalTotalMinutes > 0 ? (usageTotalMinutes / goalTotalMinutes) : 0.0;
-
-    // 목표 초과 여부에 따라 색상 결정 (초과만 빨간색, 정확히 달성은 파란색)
-    final isExceeded = progress > 1.0;
-    final barColor = isExceeded ? Colors.red : Colors.blue;
-
-    // 사용시간을 시간과 분으로 분리하여 표시
-    final usageHoursPart = goal.usageHours.toInt();
-    final usageMinutesPart = goal.usageMinutes;
->>>>>>> 7519f368d92fb58f1a71ac4e849afe5556645bef
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
@@ -604,67 +547,18 @@ class _HomeScreenState extends State<HomeScreen> {
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-<<<<<<< HEAD
             // ✨ 새로운 로딩 다이얼로그를 사용한 로직
-=======
-            // ✨ onPressed 로직을 비동기로 수정 - 프로필 검증 + 로딩 다이얼로그 추가
->>>>>>> 7519f368d92fb58f1a71ac4e849afe5556645bef
             onPressed: _isLoading
                 ? null
                 : () async {
-                    // 🔒 프로필 필수 정보 검증
-                    final userProfileProvider = Provider.of<UserProfileProvider>(context, listen: false);
-                    if (!userProfileProvider.hasRequiredProfile) {
-                      _showProfileRequiredDialog();
-                      return;
-                    }
-
                     setState(() {
                       _isLoading = true;
-                      _apiCompleted = false;
-                      _hasError = false;
-                      _errorMessage = null;
                     });
 
-<<<<<<< HEAD
                     // API 호출 결과를 저장할 변수
                     bool apiCompleted = false;
                     bool apiSuccess = false;
                     String? apiError;
-=======
-                    // 🎨 로딩 다이얼로그 표시 (100% 도달 시 콜백 실행)
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false, // 사용자가 임의로 닫지 못하게
-                      builder: (BuildContext dialogContext) {
-                        return AIGenerationLoadingDialog(
-                          onComplete: () {
-                            // 100% 도달 시 실행
-                            if (mounted) {
-                              Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
-
-                              // API 완료 여부에 따라 처리
-                              if (_hasError) {
-                                _showErrorDialog(_errorMessage ?? '알 수 없는 오류');
-                              } else {
-                                _showSuccessDialog(); // "보러가볼까요?" 다이얼로그
-                              }
-
-                              setState(() {
-                                _isLoading = false;
-                              });
-                            }
-                          },
-                        );
-                      },
-                    );
-
-                    // 백그라운드에서 API 호출 (결과는 저장만 하고 대기)
-                    try {
-                      // ✨ AppGoalProvider에서 실제 데이터를 가져옴
-                      final appGoalProvider = Provider.of<AppGoalProvider>(context, listen: false);
-                      final goals = appGoalProvider.goals;
->>>>>>> 7519f368d92fb58f1a71ac4e849afe5556645bef
 
                     // ✨ AppGoalProvider에서 실제 데이터를 가져옴
                     final appGoalProvider = Provider.of<AppGoalProvider>(context, listen: false);
@@ -717,7 +611,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 await Future.delayed(const Duration(milliseconds: 500));
                               }
 
-<<<<<<< HEAD
                               // 다이얼로그 닫기
                               if (mounted) {
                                 Navigator.of(dialogContext).pop();
@@ -737,23 +630,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         },
                       );
-=======
-                      // ✅ API 완료 - 결과만 저장하고 대기
-                      if (mounted) {
-                        setState(() {
-                          _apiCompleted = true;
-                        });
-                      }
-                    } catch (e) {
-                      // ❌ 에러 발생 - 에러 정보 저장하고 대기
-                      if (mounted) {
-                        setState(() {
-                          _hasError = true;
-                          _errorMessage = e.toString();
-                          _apiCompleted = true;
-                        });
-                      }
->>>>>>> 7519f368d92fb58f1a71ac4e849afe5556645bef
                     }
                   },
             style: ElevatedButton.styleFrom(
@@ -761,10 +637,6 @@ class _HomeScreenState extends State<HomeScreen> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
-<<<<<<< HEAD
-=======
-            // 버튼 텍스트
->>>>>>> 7519f368d92fb58f1a71ac4e849afe5556645bef
             child: const Text('What if ?!',
                 style: TextStyle(
                     fontSize: 18,
@@ -782,11 +654,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      PageTransition(
-                        type: PageTransitionType.fade,
-                        child: const DiaryListPage(),
-                        duration: const Duration(milliseconds: 300),
-                      ),
+                      MaterialPageRoute(
+                          builder: (context) => const DiaryListPage()),
                     );
                   },
                   style: OutlinedButton.styleFrom(
@@ -838,18 +707,11 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.of(context).pop(); // 다이얼로그 닫기
               // ✨ 이 부분의 주석을 해제하고 완성합니다.
               Navigator.of(context).push(
-<<<<<<< HEAD
                 CupertinoPageRoute(
                   builder: (context) => NovelDetailPage(
                     diary: lastNovel,
                     showNextButton: true,
                   ),
-=======
-                PageTransition(
-                  type: PageTransitionType.rightToLeft,
-                  child: NovelDetailPage(diary: lastNovel),
-                  duration: const Duration(milliseconds: 400),
->>>>>>> 7519f368d92fb58f1a71ac4e849afe5556645bef
                 ),
               );
             },
@@ -870,43 +732,6 @@ class _HomeScreenState extends State<HomeScreen> {
             isDefaultAction: true,
             child: const Text('확인'),
             onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 프로필 미작성 시 안내 다이얼로그
-  void _showProfileRequiredDialog() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('프로필 정보가 필요해요'),
-        content: const Text(
-          'What If 시나리오를 만들기 위해서는\n'
-          '먼저 프로필 정보를 입력해주셔야 해요.\n\n'
-          '이름, 생년월일, 성별 등의 정보를 바탕으로\n'
-          '당신만의 특별한 스토리를 만들어드립니다!',
-        ),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('나중에'),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            child: const Text('프로필 작성하기'),
-            onPressed: () {
-              Navigator.of(context).pop(); // 다이얼로그 닫기
-              // 프로필 작성 페이지로 이동
-              Navigator.of(context).push(
-                PageTransition(
-                  type: PageTransitionType.rightToLeft,
-                  child: const ProfileEditPage(isFirstTime: false),
-                  duration: const Duration(milliseconds: 300),
-                ),
-              );
-            },
           ),
         ],
       ),

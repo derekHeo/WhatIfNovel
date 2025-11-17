@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
-import 'package:page_transition/page_transition.dart';
 import '../providers/user_profile_provider.dart';
 import '../models/user_profile.dart';
-import 'home_screen.dart';
 
 class ProfileEditPage extends StatefulWidget {
-  final bool isFirstTime; // 최초 프로필 작성인지 여부
-
-  const ProfileEditPage({super.key, this.isFirstTime = false});
+  const ProfileEditPage({super.key});
 
   @override
   State<ProfileEditPage> createState() => _ProfileEditPageState();
@@ -148,15 +144,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFFFFCF3),
         elevation: 0,
-        // 최초 프로필 작성일 때는 뒤로가기 버튼 숨김
-        leading: widget.isFirstTime
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-        // 최초 프로필 작성일 때는 자동으로 중앙 정렬
-        automaticallyImplyLeading: !widget.isFirstTime,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: const Text(
           '프로필 입력',
           style: TextStyle(
@@ -678,20 +669,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             backgroundColor: Colors.green,
           ),
         );
-
-        // 최초 프로필 작성일 때는 HomeScreen으로 이동
-        if (widget.isFirstTime) {
-          Navigator.of(context).pushReplacement(
-            PageTransition(
-              type: PageTransitionType.fade,
-              child: const HomeScreen(),
-              duration: const Duration(milliseconds: 400),
-            ),
-          );
-        } else {
-          // 일반 수정일 때는 뒤로가기
-          Navigator.pop(context);
-        }
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
