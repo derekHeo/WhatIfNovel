@@ -147,6 +147,84 @@ class AndroidUsageService {
     }
   }
 
+  /// 어제 사용한 앱 리스트 가져오기 (사용 시간 순 정렬)
+  /// [minUsageMinutes]: 최소 사용 시간 (분), 기본값 1분
+  /// 반환: List<AppUsageInfo> - 앱 이름, 패키지명, 사용 시간
+  Future<List<AppUsageInfo>> getYesterdayUsedApps({int minUsageMinutes = 1}) async {
+    if (!Platform.isAndroid) return [];
+
+    try {
+      // 어제 날짜 계산
+      final DateTime yesterday = DateTime.now().subtract(const Duration(days: 1));
+      final DateTime startDate = DateTime(
+        yesterday.year,
+        yesterday.month,
+        yesterday.day,
+        0,
+        0,
+        0,
+      );
+      final DateTime endDate = DateTime(
+        yesterday.year,
+        yesterday.month,
+        yesterday.day,
+        23,
+        59,
+        59,
+      );
+
+      developer.log(
+        '어제 사용한 앱 조회: ${startDate.toString()} ~ ${endDate.toString()}',
+        name: 'AndroidUsageService',
+      );
+
+      final List<UsageInfo> usageStats = await UsageStats.queryUsageStats(
+        startDate,
+        endDate,
+      );
+
+      developer.log('조회된 앱 개수: ${usageStats.length}', name: 'AndroidUsageService');
+
+      // 앱 정보를 변환하고 필터링
+      final List<AppUsageInfo> apps = [];
+      final minUsageMillis = minUsageMinutes * 60 * 1000;
+
+      for (var usage in usageStats) {
+        // totalTimeInForeground는 String일 수 있으므로 int로 변환
+        final totalTimeMs = int.tryParse(usage.totalTimeInForeground?.toString() ?? '0') ?? 0;
+        final lastUsedMs = int.tryParse(usage.lastTimeUsed?.toString() ?? '0') ?? 0;
+
+        // 사용 시간이 최소값 이상인 앱만 포함
+        if (totalTimeMs >= minUsageMillis) {
+          final appName = await _getAppName(usage.packageName ?? '');
+
+          apps.add(AppUsageInfo(
+            appName: appName,
+            packageName: usage.packageName ?? '',
+            usageTimeMinutes: (totalTimeMs / 1000 / 60).round(),
+            usageTimeMillis: totalTimeMs,
+            lastTimeUsed: lastUsedMs > 0
+                ? DateTime.fromMillisecondsSinceEpoch(lastUsedMs)
+                : null,
+          ));
+        }
+      }
+
+      // 사용 시간 순으로 내림차순 정렬
+      apps.sort((a, b) => b.usageTimeMinutes.compareTo(a.usageTimeMinutes));
+
+      developer.log(
+        '필터링된 앱 개수: ${apps.length} (최소 사용 시간: ${minUsageMinutes}분)',
+        name: 'AndroidUsageService',
+      );
+
+      return apps;
+    } catch (e) {
+      developer.log('앱 사용 통계 조회 에러: $e', name: 'AndroidUsageService');
+      return [];
+    }
+  }
+
   /// 특정 앱의 오늘 사용 시간 가져오기 (분 단위)
   Future<int> getAppUsageTimeToday(String packageName) async {
     if (!Platform.isAndroid) return 0;

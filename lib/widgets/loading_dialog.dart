@@ -194,11 +194,12 @@ class _AIGenerationLoadingDialogState extends State<AIGenerationLoadingDialog>
 
             // 프로그레스 바
             Stack(
-              alignment: Alignment.center,
+              alignment: Alignment.centerLeft,
               children: [
                 // 배경 프로그레스 바
                 Container(
                   height: 12,
+                  width: MediaQuery.of(context).size.width * 0.7,
                   decoration: BoxDecoration(
                     color: Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(6),

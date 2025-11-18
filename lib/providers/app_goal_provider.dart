@@ -19,9 +19,24 @@ class AppGoalProvider with ChangeNotifier {
   // 마지막 동기화 날짜 (날짜 변경 감지용)
   DateTime? _lastSyncDate;
 
+  // 마지막 목표 설정 날짜 (회고 모드 vs 트래킹 모드 판별용)
+  DateTime? _lastGoalDate;
+
   List<AppGoal> get goals => _goals;
   bool get isLoading => _isLoading;
   DateTime? get lastSyncDate => _lastSyncDate;
+  DateTime? get lastGoalDate => _lastGoalDate;
+
+  // 현재 모드 판별
+  bool get isReviewMode {
+    if (_lastGoalDate == null) return true; // 목표를 설정한 적 없음 → 회고 모드
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final lastGoalDay = DateTime(_lastGoalDate!.year, _lastGoalDate!.month, _lastGoalDate!.day);
+    return lastGoalDay.isBefore(today); // 마지막 목표 설정일이 오늘 이전 → 회고 모드
+  }
+
+  bool get isTrackingMode => !isReviewMode;
 
   // 생성자에서 Firestore 데이터 로드
   AppGoalProvider() {
@@ -62,6 +77,12 @@ class AppGoalProvider with ChangeNotifier {
           _lastSyncDate = (data['lastSyncDate'] as Timestamp).toDate();
           print('마지막 동기화 날짜: ${_lastSyncDate.toString().substring(0, 10)}');
         }
+
+        // 마지막 목표 설정 날짜 로드
+        if (data['lastGoalDate'] != null) {
+          _lastGoalDate = (data['lastGoalDate'] as Timestamp).toDate();
+          print('마지막 목표 설정 날짜: ${_lastGoalDate.toString().substring(0, 10)}');
+        }
       } else {
         print('목표 데이터 없음, 기본값 사용');
       }
@@ -86,13 +107,14 @@ class AppGoalProvider with ChangeNotifier {
       final dataToSave = {
         'goals': goalsData,
         if (_lastSyncDate != null) 'lastSyncDate': Timestamp.fromDate(_lastSyncDate!),
+        if (_lastGoalDate != null) 'lastGoalDate': Timestamp.fromDate(_lastGoalDate!),
       };
 
       await _firestore
           .collection('app_goals')
           .doc(user.uid)
           .set(dataToSave, SetOptions(merge: true));
-      print('목표 저장 완료 (lastSyncDate: ${_lastSyncDate?.toString().substring(0, 10)})');
+      print('목표 저장 완료 (lastSyncDate: ${_lastSyncDate?.toString().substring(0, 10)}, lastGoalDate: ${_lastGoalDate?.toString().substring(0, 10)})');
     } catch (e) {
       print('목표 저장 에러: $e');
       throw Exception('목표 저장에 실패했습니다.');
@@ -210,9 +232,24 @@ class AppGoalProvider with ChangeNotifier {
     print('앱 삭제 완료: $appName');
   }
 
-  /// UsageStats 동기화 (00:00 기준, 날짜 변경 감지 포함)
-  /// 1. 날짜가 바뀌었으면 오늘→어제로 데이터 이동
-  /// 2. 오늘/어제 사용량 새로 조회
+  /// 마지막 목표 설정 날짜 업데이트 (WhatIf 생성 시 호출)
+  /// 회고 모드 → 트래킹 모드 전환
+  Future<void> updateLastGoalDate(DateTime newDate) async {
+    _lastGoalDate = newDate;
+    print('✅ 마지막 목표 설정 날짜 갱신: ${_lastGoalDate.toString().substring(0, 10)}');
+    print('   모드: ${isReviewMode ? "회고 모드" : "트래킹 모드"}');
+    notifyListeners();
+    await _saveGoals();
+  }
+
+  /// UsageStats 동기화 (회고 모드 vs 트래킹 모드)
+  /// ✨ 새로운 로직: getAccurateUsageTime() 사용으로 정확한 데이터 제공
+  ///
+  /// 회고 모드 (Last_Goal_Date != Current_Date):
+  ///   - Last_Goal_Date의 00:00 ~ 23:59 데이터 표시
+  ///
+  /// 트래킹 모드 (Last_Goal_Date == Current_Date):
+  ///   - Current_Date의 00:00 ~ Now 데이터 표시
   Future<void> syncAllUsageData() async {
     // Android가 아니면 스킵
     if (!Platform.isAndroid) {
@@ -226,7 +263,7 @@ class AppGoalProvider with ChangeNotifier {
       // 권한 확인
       final hasPermission = await usageService.checkUsagePermission();
       if (!hasPermission) {
-        print('UsageStats 권한이 없습니다');
+        print('⚠️ UsageStats 권한이 없습니다');
         return;
       }
 
@@ -237,120 +274,87 @@ class AppGoalProvider with ChangeNotifier {
           .toList();
 
       if (packageNames.isEmpty) {
-        print('패키지명이 있는 앱이 없습니다');
+        print('⚠️ 패키지명이 있는 앱이 없습니다');
         return;
       }
 
-      // 00:00 기준 오늘 시작 시간
       final now = DateTime.now();
-      final todayStart = DateTime(now.year, now.month, now.day, 0, 0, 0);
+      print('');
+      print('═══════════════════════════════════════════════════════════');
+      print('📊 UsageStats 동기화 시작');
+      print('═══════════════════════════════════════════════════════════');
+      print('📅 현재 시각: ${now.toString()}');
+      print('📦 조회할 앱: ${packageNames.length}개');
+      print('');
 
-      print('📅 오늘 날짜: ${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}');
-      print('📅 오늘 시작: ${todayStart.toString()}');
+      // 현재 모드 판별
+      final mode = isReviewMode ? "회고 모드" : "트래킹 모드";
+      print('🔍 현재 모드: $mode');
+      print('   Last_Goal_Date: ${_lastGoalDate?.toString().substring(0, 10) ?? "미설정"}');
+      print('   Current_Date: ${now.toString().substring(0, 10)}');
+      print('');
 
-      // 날짜 변경 감지 (lastSyncDate가 오늘이 아니면 날짜 변경)
-      final lastSyncDay = _lastSyncDate == null
-          ? null
-          : DateTime(_lastSyncDate!.year, _lastSyncDate!.month, _lastSyncDate!.day);
-      final today = DateTime(now.year, now.month, now.day);
-      final bool dateChanged = lastSyncDay == null || lastSyncDay.isBefore(today);
+      Map<String, int> usageData = {};
 
-      if (dateChanged) {
-        print('📅 날짜가 변경되었습니다! 오늘 데이터를 어제로 이동합니다.');
-        print('   lastSyncDate: ${_lastSyncDate?.toString() ?? "null"}');
-        print('   today: ${today.toString()}');
+      if (isReviewMode) {
+        // 회고 모드: Last_Goal_Date의 00:00 ~ 23:59 데이터 조회
+        print('📖 [회고 모드] Last_Goal_Date의 하루 전체 데이터 조회');
 
-        // 현재 오늘 데이터를 어제 데이터로 이동 (기존 Firestore 데이터)
-        for (var goal in _goals) {
-          print('  [이동 전] ${goal.name}: 오늘=${goal.usageHours.toInt()}h${goal.usageMinutes}m, 어제=${goal.yesterdayUsageHours.toInt()}h${goal.yesterdayUsageMinutes}m');
+        // Last_Goal_Date가 없으면 어제 날짜 사용
+        final targetDate = _lastGoalDate ?? now.subtract(const Duration(days: 1));
+        final targetDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+        final startTime = DateTime(targetDay.year, targetDay.month, targetDay.day, 0, 0, 0);
+        final endTime = DateTime(targetDay.year, targetDay.month, targetDay.day, 23, 59, 59);
 
-          goal.yesterdayUsageHours = goal.usageHours;
-          goal.yesterdayUsageMinutes = goal.usageMinutes;
+        print('   조회 범위: ${startTime.toString()} ~ ${endTime.toString()}');
+        print('   조회 날짜: ${targetDay.toString().substring(0, 10)}');
+        print('');
 
-          print('  [이동 후] ${goal.name}: 어제로 이동됨 → ${goal.yesterdayUsageHours.toInt()}h${goal.yesterdayUsageMinutes}m');
-        }
-      } else {
-        print('✅ 날짜 변경 없음. 오늘 데이터만 업데이트합니다.');
-      }
-
-      // 오늘 사용량 조회 (00:00부터 현재까지)
-      // ⚠️ 주의: Android UsageStats는 범위 무시하고 누적값 반환하는 버그가 있음
-      // 하지만 날짜가 바뀌면 오늘→어제로 이동하기 위해 계속 수집해야 함
-      // UI에는 어제 사용량만 표시됨
-      print('📱 오늘 사용량 수집 중 (내부 추적용, 자정에 어제로 이동)');
-      print('   시작: ${todayStart.toString()}');
-      print('   종료: ${now.toString()}');
-
-      final todayUsageStats = await UsageStats.queryUsageStats(todayStart, now);
-
-      final Map<String, int> todayUsageMap = {};
-      for (var packageName in packageNames) {
-        final usage = todayUsageStats.firstWhere(
-          (u) => u.packageName == packageName,
-          orElse: () => UsageInfo(packageName: packageName, totalTimeInForeground: '0'),
+        // ✅ 정확한 방법: getAccurateUsageTime() 사용
+        usageData = await usageService.getAccurateUsageTime(
+          startTime: startTime,
+          endTime: endTime,
+          packageNames: packageNames,
         );
 
-        final totalTimeMs = int.tryParse(usage.totalTimeInForeground?.toString() ?? '0') ?? 0;
-        todayUsageMap[packageName] = totalTimeMs ~/ 1000 ~/ 60;
+        print('✅ 회고 모드 데이터 조회 완료');
+      } else {
+        // 트래킹 모드: Current_Date의 00:00 ~ Now 데이터 조회
+        print('📈 [트래킹 모드] 오늘(00:00 ~ 현재)의 실시간 데이터 조회');
+
+        final today = DateTime(now.year, now.month, now.day);
+        final startTime = DateTime(today.year, today.month, today.day, 0, 0, 0);
+        final endTime = now;
+
+        print('   조회 범위: ${startTime.toString()} ~ ${endTime.toString()}');
+        print('   경과 시간: ${now.difference(startTime).inHours}시간 ${now.difference(startTime).inMinutes % 60}분');
+        print('');
+
+        // ✅ 정확한 방법: getAccurateUsageTime() 사용
+        usageData = await usageService.getAccurateUsageTime(
+          startTime: startTime,
+          endTime: endTime,
+          packageNames: packageNames,
+        );
+
+        print('✅ 트래킹 모드 데이터 조회 완료');
       }
 
-      // 오늘 사용량 업데이트 (내부적으로만 저장, UI에는 표시 안 함)
+      print('');
+      print('📊 조회된 사용량 데이터 업데이트 중...');
+
+      // 조회된 데이터를 yesterdayUsageHours/Minutes에 저장 (UI가 이 필드를 표시)
       for (var goal in _goals) {
-        if (goal.packageName != null && todayUsageMap.containsKey(goal.packageName)) {
-          final usageMinutes = todayUsageMap[goal.packageName!] ?? 0;
+        if (goal.packageName != null && usageData.containsKey(goal.packageName)) {
+          final usageMinutes = usageData[goal.packageName!] ?? 0;
           final hours = usageMinutes ~/ 60;
           final minutes = usageMinutes % 60;
 
-          goal.usageHours = hours.toDouble();
-          goal.usageMinutes = minutes;
+          goal.yesterdayUsageHours = hours.toDouble();
+          goal.yesterdayUsageMinutes = minutes;
+
+          print('   📱 ${goal.name}: ${hours}시간 ${minutes}분 (${usageMinutes}분)');
         }
-      }
-
-      // 어제 사용량 조회 (어제 00:00 ~ 23:59:59)
-      // ⚠️ 중요: 날짜가 바뀌었을 때는 이미 위에서 데이터를 이동했으므로 조회하지 않음!
-      // 오직 최초 실행 시 (어제 데이터가 0일 때)에만 조회
-      final needYesterdayData = !dateChanged &&
-                               _goals.any((g) => g.yesterdayUsageHours == 0 && g.yesterdayUsageMinutes == 0);
-
-      if (needYesterdayData) {
-        print('📅 최초 실행: 어제 사용량 조회 (00:00 ~ 23:59:59)');
-
-        final yesterday = today.subtract(const Duration(days: 1));
-        final yesterdayStart = DateTime(yesterday.year, yesterday.month, yesterday.day, 0, 0, 0);
-        final yesterdayEnd = DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59);
-
-        print('   시작: ${yesterdayStart.toString()}');
-        print('   종료: ${yesterdayEnd.toString()}');
-
-        final yesterdayUsageStats = await UsageStats.queryUsageStats(yesterdayStart, yesterdayEnd);
-        print('   조회된 앱 수: ${yesterdayUsageStats.length}개');
-
-        final Map<String, int> yesterdayUsageMap = {};
-        for (var packageName in packageNames) {
-          final usage = yesterdayUsageStats.firstWhere(
-            (u) => u.packageName == packageName,
-            orElse: () => UsageInfo(packageName: packageName, totalTimeInForeground: '0'),
-          );
-
-          final totalTimeMs = int.tryParse(usage.totalTimeInForeground?.toString() ?? '0') ?? 0;
-          yesterdayUsageMap[packageName] = totalTimeMs ~/ 1000 ~/ 60;
-        }
-
-        // 어제 사용량 업데이트
-        for (var goal in _goals) {
-          if (goal.packageName != null && yesterdayUsageMap.containsKey(goal.packageName)) {
-            final usageMinutes = yesterdayUsageMap[goal.packageName!] ?? 0;
-            final hours = usageMinutes ~/ 60;
-            final minutes = usageMinutes % 60;
-
-            goal.yesterdayUsageHours = hours.toDouble();
-            goal.yesterdayUsageMinutes = minutes;
-
-            print('  ${goal.name}: 어제=${hours}h${minutes}m');
-          }
-        }
-      } else if (dateChanged) {
-        print('📅 날짜 변경됨: 어제 데이터는 이미 이동 완료 (UsageStats 조회 안 함)');
       }
 
       // lastSyncDate를 현재 시간으로 업데이트
@@ -359,13 +363,18 @@ class AppGoalProvider with ChangeNotifier {
       notifyListeners();
       await _saveGoals();
 
-      print('✅ UsageStats 동기화 완료 (00:00 기준, ${packageNames.length}개 앱)');
-      print('📊 최종 상태 (UI에는 어제만 표시):');
-      for (var goal in _goals) {
-        print('  ${goal.name}: 어제=${goal.yesterdayUsageHours.toInt()}h${goal.yesterdayUsageMinutes}m');
-      }
+      print('');
+      print('✅ UsageStats 동기화 완료!');
+      print('   모드: $mode');
+      print('   조회된 앱: ${packageNames.length}개');
+      print('   마지막 동기화: ${_lastSyncDate.toString()}');
+      print('═══════════════════════════════════════════════════════════');
+      print('');
     } catch (e) {
-      print('UsageStats 동기화 에러: $e');
+      print('');
+      print('❌ UsageStats 동기화 에러: $e');
+      print('   스택 트레이스: ${StackTrace.current}');
+      print('');
     }
   }
 }

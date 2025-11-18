@@ -144,11 +144,7 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
                           const SizedBox(height: 30),
                         const Divider(thickness: 1, color: Colors.black12),
                         const SizedBox(height: 30),
-                        Text(
-                          widget.diary.content,
-                          style: const TextStyle(
-                              fontSize: 16, color: Colors.black, height: 1.6),
-                        ),
+                        _buildNovelContent(),
                         const SizedBox(height: 50),
                         if (widget.showNextButton) _buildNextButton(context),
                         if (widget.showNextButton) const SizedBox(height: 50),
@@ -257,6 +253,128 @@ class _NovelDetailPageState extends State<NovelDetailPage> {
           ),
         );
       },
+    );
+  }
+
+  // 소설 내용을 파싱하고 시각적으로 분리하여 표시
+  Widget _buildNovelContent() {
+    final scenarios = _parseNovelContent(widget.diary.content);
+
+    if (scenarios.isEmpty) {
+      // 파싱 실패 시 기본 표시
+      return Text(
+        widget.diary.content,
+        style: const TextStyle(fontSize: 16, color: Colors.black, height: 1.6),
+      );
+    }
+
+    return Column(
+      children: scenarios.map((scenario) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 24.0),
+          child: _buildScenarioCard(scenario),
+        );
+      }).toList(),
+    );
+  }
+
+  // 소설 내용을 파싱하여 시나리오별로 분리
+  List<Map<String, String>> _parseNovelContent(String content) {
+    final scenarios = <Map<String, String>>[];
+
+    // ## What you did와 ## What if you didn't를 기준으로 분리
+    final pattern = RegExp(r'##\s*(What you did|What if you didn.*)', multiLine: true);
+    final matches = pattern.allMatches(content).toList();
+
+    if (matches.isEmpty) {
+      return []; // 파싱 실패
+    }
+
+    for (int i = 0; i < matches.length; i++) {
+      final match = matches[i];
+      final title = match.group(1) ?? '';
+
+      // 현재 제목 이후부터 다음 제목 전까지의 내용 추출
+      final startIndex = match.end;
+      final endIndex = (i < matches.length - 1)
+          ? matches[i + 1].start
+          : content.length;
+
+      final scenarioContent = content.substring(startIndex, endIndex).trim();
+
+      scenarios.add({
+        'title': title,
+        'content': scenarioContent,
+      });
+    }
+
+    return scenarios;
+  }
+
+  // 각 시나리오를 카드 형태로 표시
+  Widget _buildScenarioCard(Map<String, String> scenario) {
+    final title = scenario['title'] ?? '';
+    final content = scenario['content'] ?? '';
+
+    // 제목에 따라 다른 색상 적용
+    final isWhatYouDid = title.toLowerCase().contains('what you did');
+    final accentColor = isWhatYouDid
+        ? Colors.blue.shade600
+        : Colors.purple.shade600;
+    final bgColor = isWhatYouDid
+        ? Colors.blue.shade50
+        : Colors.purple.shade50;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accentColor.withOpacity(0.3), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: accentColor.withOpacity(0.1),
+            blurRadius: 10,
+            spreadRadius: 2,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 제목
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: accentColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // 내용
+          Text(
+            content,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.black87,
+              height: 1.6,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

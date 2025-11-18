@@ -389,24 +389,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
           Expanded(
             child: Row(
               children: [
-                SizedBox(
-                  width: 100,
+                Flexible(
                   child: Text(
                     goal.name,
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 12),
-                const Text('목표:'),
                 const SizedBox(width: 8),
+                const Text('목표:', style: TextStyle(fontSize: 13)),
+                const SizedBox(width: 6),
                 _buildTimeInput(_controllers[goal.name]!['hours']!),
-                const SizedBox(width: 4),
-                const Text('h'),
-                const SizedBox(width: 8),
+                const SizedBox(width: 3),
+                const Text('h', style: TextStyle(fontSize: 13)),
+                const SizedBox(width: 6),
                 _buildTimeInput(_controllers[goal.name]!['minutes']!),
-                const SizedBox(width: 4),
-                const Text('m'),
+                const SizedBox(width: 3),
+                const Text('m', style: TextStyle(fontSize: 13)),
               ],
             ),
           ),

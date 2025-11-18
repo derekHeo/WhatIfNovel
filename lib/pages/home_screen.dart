@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'dart:async';
 import 'diary_list_page.dart';
 import 'settings_screen.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +12,7 @@ import '../providers/usage_stats_provider.dart';
 import '../models/app_goal_model.dart';
 import '../widgets/usage_chart_widget.dart';
 import '../widgets/loading_dialog.dart';
+import '../services/whatif_usage_manager.dart';
 
 // import 'package:provider/provider.dart';
 // import '../providers/diary_provider.dart';
@@ -30,6 +32,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = false; // ✨ 로딩 상태 변수 추가
+  bool _canUseWhatIf = true; // What If 사용 가능 여부
+  int _minutesUntilMidnight = 0; // 다음 00시까지 남은 분
+  Timer? _timer; // 1분마다 업데이트용 타이머
 
   final TextEditingController _todoInputController = TextEditingController();
 
@@ -46,7 +51,36 @@ class _HomeScreenState extends State<HomeScreen> {
         usageStatsProvider.loadUsageStats(),
         appGoalProvider.syncAllUsageData(), // 오늘/어제 사용량 동기화 (날짜 변경 감지 포함)
       ]);
+
+      // What If 사용 가능 여부 체크
+      await _checkWhatIfAvailability();
     });
+
+    // 1분마다 What If 사용 가능 여부 및 남은 시간 업데이트
+    // + 트래킹 모드일 때 실시간 사용량 업데이트
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) async {
+      _checkWhatIfAvailability();
+
+      // 트래킹 모드일 때만 실시간 업데이트
+      final appGoalProvider = Provider.of<AppGoalProvider>(context, listen: false);
+      if (appGoalProvider.isTrackingMode) {
+        print('🔄 트래킹 모드: 실시간 사용량 업데이트 중...');
+        await appGoalProvider.syncAllUsageData();
+      }
+    });
+  }
+
+  /// What If 사용 가능 여부 및 남은 시간 체크
+  Future<void> _checkWhatIfAvailability() async {
+    final canUse = await WhatIfUsageManager.canUseToday();
+    final minutesLeft = WhatIfUsageManager.getMinutesUntilMidnight();
+
+    if (mounted) {
+      setState(() {
+        _canUseWhatIf = canUse;
+        _minutesUntilMidnight = minutesLeft;
+      });
+    }
   }
 
   // ✨ 성공률 계산 함수
@@ -74,6 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _todoInputController.dispose();
+    _timer?.cancel(); // 타이머 정리
     super.dispose();
   }
 
@@ -194,6 +229,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ✨ 목표 대비 사용량 카드 위젯
   Widget _buildSuccessRateCard(List<AppGoal> goals) {
+    final appGoalProvider = Provider.of<AppGoalProvider>(context, listen: false);
+    final isReviewMode = appGoalProvider.isReviewMode;
+    final lastGoalDate = appGoalProvider.lastGoalDate;
+
+    // 모드별 표시 텍스트
+    String modeText;
+    String dateText;
+    if (isReviewMode) {
+      if (lastGoalDate == null) {
+        modeText = '📖 회고 모드';
+        dateText = '어제 데이터 기반 (What If 생성에 사용됩니다)';
+      } else {
+        final lastGoalDay = DateTime(lastGoalDate.year, lastGoalDate.month, lastGoalDate.day);
+        final formattedDate = '${lastGoalDay.month}월 ${lastGoalDay.day}일';
+        modeText = '📖 회고 모드';
+        dateText = '$formattedDate 데이터 기반 (What If 생성에 사용됩니다)';
+      }
+    } else {
+      modeText = '📈 트래킹 모드';
+      dateText = '오늘의 실시간 사용량 (00:00 ~ 현재)';
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       decoration: BoxDecoration(
@@ -210,11 +267,31 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 제목
-          const Text('목표 대비 사용량',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Row(
+            children: [
+              const Text('목표 대비 사용량',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isReviewMode ? Colors.blue.shade50 : Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  modeText,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isReviewMode ? Colors.blue.shade700 : Colors.green.shade700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           Text(
-            '어제 데이터 기반 (What If 생성에 사용됩니다)',
+            dateText,
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 20),
@@ -547,8 +624,8 @@ class _HomeScreenState extends State<HomeScreen> {
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-            // ✨ 새로운 로딩 다이얼로그를 사용한 로직
-            onPressed: _isLoading
+            // ✨ 새로운 로딩 다이얼로그를 사용한 로직 + 1일 1회 사용 제한
+            onPressed: (_isLoading || !_canUseWhatIf)
                 ? null
                 : () async {
                     setState(() {
@@ -621,6 +698,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                 // API 결과에 따라 성공/실패 다이얼로그 표시
                                 if (apiSuccess) {
+                                  // ✨ What If 사용 기록 저장
+                                  await WhatIfUsageManager.markAsUsedToday();
+                                  // 상태 업데이트
+                                  await _checkWhatIfAvailability();
+
+                                  // ✨ Last_Goal_Date를 오늘로 갱신 (회고 모드 → 트래킹 모드 전환)
+                                  await appGoalProvider.updateLastGoalDate(DateTime.now());
+
+                                  // ✨ 트래킹 모드로 전환되었으므로 즉시 오늘 데이터 동기화
+                                  await appGoalProvider.syncAllUsageData();
+
                                   _showSuccessDialog();
                                 } else {
                                   _showErrorDialog(apiError ?? '알 수 없는 오류');
@@ -633,15 +721,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     }
                   },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
+              backgroundColor: _canUseWhatIf ? Colors.blue : Colors.grey,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('What if ?!',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white)),
+            child: Text(
+              _canUseWhatIf
+                  ? 'What if ?!'
+                  : '다음 생성까지 ${WhatIfUsageManager.getTimeUntilMidnightFormatted()} 남음',
+              style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
+            ),
           ),
         ),
         const SizedBox(height: 12),

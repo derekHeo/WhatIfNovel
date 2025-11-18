@@ -43,8 +43,8 @@ class _AppSelectorBottomSheetState extends State<AppSelectorBottomSheet> {
         return;
       }
 
-      // 오늘 사용한 앱 리스트 가져오기 (최소 1분 이상 사용한 앱)
-      final apps = await _usageService.getTodayUsedApps(minUsageMinutes: 1);
+      // 어제 사용한 앱 리스트 가져오기 (최소 1분 이상 사용한 앱)
+      final apps = await _usageService.getYesterdayUsedApps(minUsageMinutes: 1);
 
       setState(() {
         _apps = apps;
@@ -53,7 +53,7 @@ class _AppSelectorBottomSheetState extends State<AppSelectorBottomSheet> {
 
       if (_apps.isEmpty) {
         setState(() {
-          _errorMessage = '오늘 사용한 앱이 없습니다';
+          _errorMessage = '어제 사용한 앱이 없습니다';
         });
       }
     } catch (e) {
@@ -240,7 +240,7 @@ class _AppSelectorBottomSheetState extends State<AppSelectorBottomSheet> {
             Icon(Icons.apps, size: 64, color: Colors.grey),
             SizedBox(height: 16),
             Text(
-              '오늘 사용한 앱이 없습니다',
+              '어제 사용한 앱이 없습니다',
               style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
           ],
@@ -321,7 +321,7 @@ class _AppSelectorBottomSheetState extends State<AppSelectorBottomSheet> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '오늘 ${app.formattedUsageTime}',
+                    '어제 ${app.formattedUsageTime}',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey.shade600,
