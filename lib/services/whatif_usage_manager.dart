@@ -1,30 +1,47 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import './firestore_service.dart';
 
-/// What If 버튼의 1일 1회 사용 제한을 관리하는 서비스
+/// What If 버튼의 1일 1회 사용 제한을 관리하는 서비스 (사용자 ID 기반)
 class WhatIfUsageManager {
-  static const String _lastUsageDateKey = 'whatif_last_usage_date';
+  static final FirestoreService _firestoreService = FirestoreService();
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// 오늘 What If를 사용했는지 확인
   /// 반환값: true = 사용 가능, false = 이미 사용함
   static Future<bool> canUseToday() async {
-    final prefs = await SharedPreferences.getInstance();
-    final lastUsageDate = prefs.getString(_lastUsageDateKey);
-
-    if (lastUsageDate == null) {
-      // 한 번도 사용하지 않음
-      return true;
+    final user = _auth.currentUser;
+    if (user == null) {
+      // 로그인하지 않은 경우 사용 불가
+      return false;
     }
 
-    final today = _getTodayDateString();
-    // 마지막 사용 날짜가 오늘이 아니면 사용 가능
-    return lastUsageDate != today;
+    try {
+      final lastUsageDate = await _firestoreService.getWhatIfUsageDate(user.uid);
+
+      if (lastUsageDate == null) {
+        // 한 번도 사용하지 않음
+        return true;
+      }
+
+      final today = _getTodayDateString();
+      // 마지막 사용 날짜가 오늘이 아니면 사용 가능
+      return lastUsageDate != today;
+    } catch (e) {
+      // 오류 발생 시 안전하게 false 반환
+      print('What If 사용 가능 여부 확인 오류: $e');
+      return false;
+    }
   }
 
   /// What If 사용 기록 저장
   static Future<void> markAsUsedToday() async {
-    final prefs = await SharedPreferences.getInstance();
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('로그인이 필요합니다.');
+    }
+
     final today = _getTodayDateString();
-    await prefs.setString(_lastUsageDateKey, today);
+    await _firestoreService.saveWhatIfUsageDate(user.uid, today);
   }
 
   /// 다음 00시까지 남은 시간 (분 단위)
@@ -59,7 +76,11 @@ class WhatIfUsageManager {
 
   /// 테스트/디버깅용: 사용 기록 초기화
   static Future<void> resetUsage() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_lastUsageDateKey);
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('로그인이 필요합니다.');
+    }
+
+    await _firestoreService.resetWhatIfUsage(user.uid);
   }
 }

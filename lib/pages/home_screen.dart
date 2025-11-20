@@ -30,44 +30,81 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _isLoading = false; // ✨ 로딩 상태 변수 추가
   bool _canUseWhatIf = true; // What If 사용 가능 여부
   int _minutesUntilMidnight = 0; // 다음 00시까지 남은 분
-  Timer? _timer; // 1분마다 업데이트용 타이머
+  Timer? _timer; // 30초마다 업데이트용 타이머
+  bool _isSyncing = false; // 동기화 중 여부 (중복 호출 방지)
 
   final TextEditingController _todoInputController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    // WidgetsBindingObserver 등록 (앱 라이프사이클 감지)
+    WidgetsBinding.instance.addObserver(this);
+
     // 사용량 통계 로드
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final usageStatsProvider = Provider.of<UsageStatsProvider>(context, listen: false);
-      final appGoalProvider = Provider.of<AppGoalProvider>(context, listen: false);
-
-      // UsageStats 데이터 로드
-      await Future.wait([
-        usageStatsProvider.loadUsageStats(),
-        appGoalProvider.syncAllUsageData(), // 오늘/어제 사용량 동기화 (날짜 변경 감지 포함)
-      ]);
-
-      // What If 사용 가능 여부 체크
-      await _checkWhatIfAvailability();
+      await _syncAllData();
     });
 
-    // 1분마다 What If 사용 가능 여부 및 남은 시간 업데이트
+    // 30초마다 What If 사용 가능 여부 및 남은 시간 업데이트
     // + 트래킹 모드일 때 실시간 사용량 업데이트
-    _timer = Timer.periodic(const Duration(minutes: 1), (_) async {
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) async {
       _checkWhatIfAvailability();
 
       // 트래킹 모드일 때만 실시간 업데이트
       final appGoalProvider = Provider.of<AppGoalProvider>(context, listen: false);
       if (appGoalProvider.isTrackingMode) {
         print('🔄 트래킹 모드: 실시간 사용량 업데이트 중...');
-        await appGoalProvider.syncAllUsageData();
+        await _syncUsageDataSafe();
       }
     });
+  }
+
+  /// 앱 라이프사이클 변경 감지
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    // 앱이 포그라운드로 돌아올 때 데이터 동기화
+    if (state == AppLifecycleState.resumed) {
+      print('📱 앱 복귀 감지: 데이터 동기화 시작');
+      _syncAllData();
+    }
+  }
+
+  /// 모든 데이터 동기화 (중복 호출 방지)
+  Future<void> _syncAllData() async {
+    final usageStatsProvider = Provider.of<UsageStatsProvider>(context, listen: false);
+    final appGoalProvider = Provider.of<AppGoalProvider>(context, listen: false);
+
+    // UsageStats 데이터 로드
+    await Future.wait([
+      usageStatsProvider.loadUsageStats(),
+      _syncUsageDataSafe(),
+    ]);
+
+    // What If 사용 가능 여부 체크
+    await _checkWhatIfAvailability();
+  }
+
+  /// 사용량 데이터 동기화 (중복 호출 방지)
+  Future<void> _syncUsageDataSafe() async {
+    if (_isSyncing) {
+      print('⏭️ 이미 동기화 중이므로 스킵');
+      return;
+    }
+
+    _isSyncing = true;
+    try {
+      final appGoalProvider = Provider.of<AppGoalProvider>(context, listen: false);
+      await appGoalProvider.syncAllUsageData();
+    } finally {
+      _isSyncing = false;
+    }
   }
 
   /// What If 사용 가능 여부 및 남은 시간 체크
@@ -109,6 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _todoInputController.dispose();
     _timer?.cancel(); // 타이머 정리
+    WidgetsBinding.instance.removeObserver(this); // Observer 제거
     super.dispose();
   }
 
@@ -129,6 +167,35 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           },
         ),
+        actions: [
+          // 수동 새로고침 버튼
+          IconButton(
+            icon: _isSyncing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                    ),
+                  )
+                : const Icon(Icons.refresh, color: Colors.black, size: 28),
+            onPressed: _isSyncing
+                ? null
+                : () async {
+                    print('🔄 수동 새로고침 시작');
+                    await _syncAllData();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('사용량 데이터가 업데이트되었습니다'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    }
+                  },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -316,10 +383,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // 목표 대비 사용량 바 그래프
   Widget _buildGoalVsUsageBar(AppGoal goal) {
+    final appGoalProvider = Provider.of<AppGoalProvider>(context, listen: false);
+    final isTrackingMode = appGoalProvider.isTrackingMode;
+
     // 목표 시간 (분)
     final goalMinutes = (goal.goalHours * 60) + goal.goalMinutes;
-    // 실제 사용 시간 (분, 어제 데이터)
-    final usageMinutes = (goal.yesterdayUsageHours * 60).toInt() + goal.yesterdayUsageMinutes;
+    // 실제 사용 시간 (분) - 모드별로 적절한 필드 사용
+    final usageMinutes = isTrackingMode
+        ? (goal.usageHours * 60).toInt() + goal.usageMinutes  // 트래킹 모드: 오늘 00:00 ~ 현재
+        : (goal.yesterdayUsageHours * 60).toInt() + goal.yesterdayUsageMinutes;  // 회고 모드: 어제 하루
 
     // 비율 계산
     final double percentage = goalMinutes > 0 ? (usageMinutes / goalMinutes) : 0.0;

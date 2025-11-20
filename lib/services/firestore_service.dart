@@ -14,6 +14,7 @@ class FirestoreService {
   static const String _userProfilesCollection = 'user_profiles';
   static const String _appGoalsCollection = 'app_goals';
   static const String _inquiriesCollection = 'inquiries';
+  static const String _whatifUsageCollection = 'whatif_usage';
 
   // ==================== Diary 관련 메서드 ====================
 
@@ -290,6 +291,46 @@ class FirestoreService {
           .set(inquiry.toMap());
     } catch (e) {
       throw Exception('문의 전송 실패: $e');
+    }
+  }
+
+  // ==================== What If 사용 기록 관련 메서드 ====================
+
+  /// What If 마지막 사용 날짜 저장
+  Future<void> saveWhatIfUsageDate(String userId, String date) async {
+    try {
+      await _firestore
+          .collection(_whatifUsageCollection)
+          .doc(userId)
+          .set({'lastUsageDate': date}, SetOptions(merge: true));
+    } catch (e) {
+      throw Exception('What If 사용 기록 저장 실패: $e');
+    }
+  }
+
+  /// What If 마지막 사용 날짜 가져오기
+  Future<String?> getWhatIfUsageDate(String userId) async {
+    try {
+      final doc = await _firestore
+          .collection(_whatifUsageCollection)
+          .doc(userId)
+          .get();
+
+      if (doc.exists) {
+        return doc.data()?['lastUsageDate'] as String?;
+      }
+      return null;
+    } catch (e) {
+      throw Exception('What If 사용 기록 불러오기 실패: $e');
+    }
+  }
+
+  /// What If 사용 기록 초기화 (테스트/디버깅용)
+  Future<void> resetWhatIfUsage(String userId) async {
+    try {
+      await _firestore.collection(_whatifUsageCollection).doc(userId).delete();
+    } catch (e) {
+      throw Exception('What If 사용 기록 초기화 실패: $e');
     }
   }
 }

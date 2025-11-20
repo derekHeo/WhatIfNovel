@@ -22,13 +22,16 @@ class _UsageChartWidgetState extends State<UsageChartWidget> {
   @override
   Widget build(BuildContext context) {
     final appGoalProvider = widget.appGoalProvider;
+    final isTrackingMode = appGoalProvider.isTrackingMode;
 
-    // 어제 총 사용량 계산 (등록한 앱들의 합)
-    final yesterdayTotalMinutes = appGoalProvider.goals.fold<int>(
+    // 총 사용량 계산 (모드별로 적절한 필드 사용)
+    final totalMinutes = appGoalProvider.goals.fold<int>(
       0,
-      (sum, goal) => sum + (goal.yesterdayUsageHours * 60).toInt() + goal.yesterdayUsageMinutes
+      (sum, goal) => sum + (isTrackingMode
+          ? (goal.usageHours * 60).toInt() + goal.usageMinutes  // 트래킹 모드: 오늘 00:00 ~ 현재
+          : (goal.yesterdayUsageHours * 60).toInt() + goal.yesterdayUsageMinutes)  // 회고 모드: 어제 하루
     );
-    final yesterdayHours = yesterdayTotalMinutes / 60.0;
+    final totalHours = totalMinutes / 60.0;
 
     return Container(
       padding: const EdgeInsets.all(20.0),
@@ -47,27 +50,27 @@ class _UsageChartWidgetState extends State<UsageChartWidget> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 제목 & 총 사용 시간
-          _buildHeader(yesterdayTotalMinutes),
+          _buildHeader(totalMinutes, isTrackingMode),
           const SizedBox(height: 20),
 
-          // 차트 (어제 데이터만)
+          // 차트
           SizedBox(
             height: 180,
-            child: _buildYesterdayChart(yesterdayHours),
+            child: _buildChart(totalHours, isTrackingMode),
           ),
           const SizedBox(height: 16),
 
           // 동기부여 멘트
-          _buildMotivationMessage(yesterdayTotalMinutes),
+          _buildMotivationMessage(totalMinutes),
         ],
       ),
     );
   }
 
   /// 헤더 (제목 & 총 사용 시간)
-  Widget _buildHeader(int yesterdayTotalMinutes) {
-    final hours = yesterdayTotalMinutes ~/ 60;
-    final minutes = yesterdayTotalMinutes % 60;
+  Widget _buildHeader(int totalMinutes, bool isTrackingMode) {
+    final hours = totalMinutes ~/ 60;
+    final minutes = totalMinutes % 60;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,7 +85,7 @@ class _UsageChartWidgetState extends State<UsageChartWidget> {
         ),
         const SizedBox(height: 4),
         Text(
-          '어제',
+          isTrackingMode ? '오늘 (00:00 ~ 현재)' : '어제',
           style: TextStyle(
             fontSize: 12,
             color: Colors.grey.shade600,
@@ -101,15 +104,16 @@ class _UsageChartWidgetState extends State<UsageChartWidget> {
     );
   }
 
-  /// 어제 사용량 차트 (단일 막대)
-  Widget _buildYesterdayChart(double yesterdayHours) {
-    if (yesterdayHours == 0) {
+  /// 사용량 차트 (단일 막대)
+  Widget _buildChart(double totalHours, bool isTrackingMode) {
+    if (totalHours == 0) {
       return const Center(
         child: Text('데이터가 없습니다', style: TextStyle(color: Colors.grey)),
       );
     }
 
-    final maxY = (yesterdayHours * 1.2).ceil().toDouble();
+    final maxY = (totalHours * 1.2).ceil().toDouble();
+    final chartLabel = isTrackingMode ? '오늘' : '어제';
 
     return BarChart(
       BarChartData(
@@ -121,8 +125,8 @@ class _UsageChartWidgetState extends State<UsageChartWidget> {
             x: 0,
             barRods: [
               BarChartRodData(
-                toY: yesterdayHours,
-                color: Colors.blue,
+                toY: totalHours,
+                color: isTrackingMode ? Colors.green : Colors.blue,
                 width: 60,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
               ),
@@ -147,13 +151,13 @@ class _UsageChartWidgetState extends State<UsageChartWidget> {
               showTitles: true,
               getTitlesWidget: (value, meta) {
                 if (value.toInt() == 0) {
-                  return const Padding(
-                    padding: EdgeInsets.only(top: 8.0),
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
                     child: Text(
-                      '어제',
+                      chartLabel,
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.blue,
+                        color: isTrackingMode ? Colors.green : Colors.blue,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -183,8 +187,8 @@ class _UsageChartWidgetState extends State<UsageChartWidget> {
   }
 
   /// 동기부여 멘트
-  Widget _buildMotivationMessage(int yesterdayTotalMinutes) {
-    final hours = yesterdayTotalMinutes / 60.0;
+  Widget _buildMotivationMessage(int totalMinutes) {
+    final hours = totalMinutes / 60.0;
 
     String message;
     IconData icon;

@@ -343,17 +343,24 @@ class AppGoalProvider with ChangeNotifier {
       print('');
       print('📊 조회된 사용량 데이터 업데이트 중...');
 
-      // 조회된 데이터를 yesterdayUsageHours/Minutes에 저장 (UI가 이 필드를 표시)
+      // 조회된 데이터를 모드별로 적절한 필드에 저장
       for (var goal in _goals) {
         if (goal.packageName != null && usageData.containsKey(goal.packageName)) {
           final usageMinutes = usageData[goal.packageName!] ?? 0;
           final hours = usageMinutes ~/ 60;
           final minutes = usageMinutes % 60;
 
-          goal.yesterdayUsageHours = hours.toDouble();
-          goal.yesterdayUsageMinutes = minutes;
+          if (isTrackingMode) {
+            // 트래킹 모드: usageHours/Minutes에 저장 (오늘 00:00 ~ 현재)
+            goal.usageHours = hours.toDouble();
+            goal.usageMinutes = minutes;
+          } else {
+            // 회고 모드: yesterdayUsageHours/Minutes에 저장 (어제 하루)
+            goal.yesterdayUsageHours = hours.toDouble();
+            goal.yesterdayUsageMinutes = minutes;
+          }
 
-          print('   📱 ${goal.name}: ${hours}시간 ${minutes}분 (${usageMinutes}분)');
+          print('   📱 ${goal.name}: ${hours}시간 ${minutes}분 (${usageMinutes}분) [$mode]');
         }
       }
 
